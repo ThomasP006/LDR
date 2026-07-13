@@ -22,6 +22,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
   :root{
     --bg-deep:#170B33;
@@ -674,6 +676,86 @@
 </div>
 
 <script>
+/* ============================================================
+   FIREBASE — nécessaire pour le multijoueur hors de Claude
+   (bataille navale, morpion, classement, OOTD)
+   ============================================================
+   1. Va sur console.firebase.google.com, crée un projet gratuit
+   2. Active "Realtime Database" (mode test)
+   3. Récupère ton "firebaseConfig" dans Paramètres du projet > Web
+   4. Colle les valeurs ci-dessous à la place des guillemets vides
+   Tant que ce n'est pas rempli, le site fonctionne mais le
+   multijoueur reste désactivé (un message d'avertissement s'affiche).
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBXVfFzf_B0YeqQafKdiLgRp_gpiY7F8fQ",
+  authDomain: "ldrthomasarah.firebaseapp.com",
+  databaseURL: "https://ldrthomasarah-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ldrthomasarah",
+  storageBucket: "ldrthomasarah.firebasestorage.app",
+  messagingSenderId: "238905918210",
+  appId: "1:238905918210:web:091ebd6ad1e442ff2ef81b"
+};
+
+let firebaseReady = false;
+if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL){
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseReady = true;
+  }catch(e){ console.error('Firebase init error', e); }
+}
+
+// Remplace le stockage : les données "shared" (multijoueur) passent par
+// Firebase Realtime Database, les données personnelles (ton identité,
+// la partie que tu as rejointe) restent sur ton propre appareil (localStorage).
+window.storage = {
+  async get(key, shared){
+    if(shared){
+      if(!firebaseReady) throw new Error('Firebase non configuré');
+      const snap = await firebase.database().ref('shared/' + key).once('value');
+      const val = snap.val();
+      if(val === null || val === undefined) throw new Error('not found');
+      return { key, value: val, shared: true };
+    } else {
+      const raw = localStorage.getItem('local:' + key);
+      if(raw === null) throw new Error('not found');
+      return { key, value: raw, shared: false };
+    }
+  },
+  async set(key, value, shared){
+    if(shared){
+      if(!firebaseReady) throw new Error('Firebase non configuré');
+      await firebase.database().ref('shared/' + key).set(value);
+      return { key, value, shared: true };
+    } else {
+      localStorage.setItem('local:' + key, value);
+      return { key, value, shared: false };
+    }
+  },
+  async delete(key, shared){
+    if(shared){
+      if(!firebaseReady) throw new Error('Firebase non configuré');
+      await firebase.database().ref('shared/' + key).remove();
+      return { key, deleted: true, shared: true };
+    } else {
+      localStorage.removeItem('local:' + key);
+      return { key, deleted: true, shared: false };
+    }
+  },
+  async list(prefix, shared){
+    return { keys: [], shared: !!shared };
+  }
+};
+
+if(!firebaseReady){
+  window.addEventListener('DOMContentLoaded', () => {
+    const banner = document.createElement('div');
+    banner.textContent = "⚠️ Firebase n'est pas encore configuré — les jeux à deux (bataille navale, morpion, classement, OOTD) ne fonctionneront pas tant que la config n'est pas remplie en haut du script.";
+    banner.style.cssText = 'background:#3a1030;color:#FFD23F;text-align:center;padding:10px;font-family:monospace;font-size:.75rem;position:sticky;top:0;z-index:999;';
+    document.body.prepend(banner);
+  });
+}
+
 /* ============================================================
    DONNÉES À PERSONNALISER — modifie juste ce qui suit
    ============================================================ */

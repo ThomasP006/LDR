@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  NOTRE ARCADE — à personnaliser facilement
+  Cherche le bloc "DONNÉES À PERSONNALISER" un peu plus bas
+  dans le <script> pour changer :
+    - vos prénoms
+    - la date de début de la relation
+    - la date des prochaines retrouvailles
+    - les événements de la timeline
+    - les questions du quiz
+    - les paires du memory (et les vraies photos)
+  ============================================================
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notre Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#170B33;
+    --bg-deep2:#0F0721;
+    --pink:#FF3E7F;
+    --yellow:#FFD23F;
+    --cyan:#4CEEDB;
+    --purple:#9B5DE5;
+    --white:#FFF8F0;
+    --panel:#22103F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 10%, rgba(155,93,229,0.35), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(76,238,219,0.18), transparent 45%),
+      var(--bg-deep2);
+    color:var(--white);
+    font-family:'Nunito', sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  .stars{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 70% 20%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.5px 1.5px at 55% 85%, rgba(255,255,255,.35), transparent);
+    background-size: 100% 100%;
+  }
+  .wrap{position:relative; z-index:1; max-width:900px; margin:0 auto; padding:32px 20px 80px;}
+
+  /* ---------- MARQUEE ---------- */
+  .marquee{
+    text-align:center;
+    padding:28px 16px 24px;
+    position:relative;
+  }
+  .marquee .lights{
+    display:flex; justify-content:center; gap:10px; margin-bottom:14px;
+  }
+  .marquee .lights span{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--yellow);
+    box-shadow:0 0 8px var(--yellow), 0 0 16px var(--yellow);
+    animation: blink 1.6s infinite ease-in-out;
+  }
+  .marquee .lights span:nth-child(odd){ animation-delay:.4s; background:var(--pink); box-shadow:0 0 8px var(--pink),0 0 16px var(--pink);}
+  .marquee .lights span:nth-child(3n){ animation-delay:.8s; background:var(--cyan); box-shadow:0 0 8px var(--cyan),0 0 16px var(--cyan);}
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+
+  h1.title{
+    font-family:'Fredoka', sans-serif;
+    font-weight:700;
+    font-size:clamp(2rem, 7vw, 3.4rem);
+    margin:0;
+    letter-spacing:1px;
+    color:var(--white);
+    text-shadow:
+      0 0 6px var(--pink),
+      0 0 22px var(--pink),
+      0 0 44px var(--purple);
+  }
+  .subtitle{
+    font-family:'Space Mono', monospace;
+    color:var(--cyan);
+    letter-spacing:3px;
+    font-size:.8rem;
+    text-transform:uppercase;
+    margin-top:10px;
+  }
+
+  /* ---------- CABINET / MENU ---------- */
+  .cabinets{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+    gap:22px;
+    margin-top:36px;
+  }
+  .cabinet{
+    background:linear-gradient(160deg, var(--panel), #170B33);
+    border:2px solid rgba(255,255,255,.08);
+    border-radius:20px;
+    padding:26px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    position:relative;
+  }
+  .cabinet:hover, .cabinet:focus-visible{
+    transform:translateY(-6px);
+    border-color:var(--accent, var(--pink));
+    box-shadow:0 12px 30px rgba(0,0,0,.4), 0 0 0 1px var(--accent, var(--pink)) inset;
+    outline:none;
+  }
+  .cabinet .emoji{ font-size:2.6rem; display:block; margin-bottom:10px; }
+  .cabinet h3{
+    font-family:'Fredoka', sans-serif;
+    margin:0 0 6px;
+    font-size:1.15rem;
+    color:var(--white);
+  }
+  .cabinet p{ margin:0; font-size:.85rem; color:#c9bfe0; }
+  .cabinet .coin{
+    display:inline-block; margin-top:14px; font-family:'Space Mono',monospace;
+    font-size:.7rem; letter-spacing:2px; color:var(--accent, var(--pink));
+    border:1px solid var(--accent, var(--pink)); border-radius:999px; padding:5px 12px;
+  }
+
+  /* ---------- SCREENS ---------- */
+  .screen{
+    display:none;
+    background:var(--panel);
+    border-radius:22px;
+    border:2px solid rgba(255,255,255,.08);
+    padding:30px 24px;
+    margin-top:30px;
+    position:relative;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+  }
+  .screen.active{ display:block; animation:fadeIn .3s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  .back-btn{
+    background:none; border:1px solid rgba(255,255,255,.2); color:var(--white);
+    font-family:'Space Mono', monospace; font-size:.75rem; letter-spacing:1px;
+    padding:8px 14px; border-radius:999px; cursor:pointer; margin-bottom:18px;
+  }
+  .back-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+
+  .screen h2{
+    font-family:'Fredoka', sans-serif;
+    color:var(--yellow);
+    margin-top:0;
+  }
+
+  /* ---------- TIMELINE / COMPTEUR ---------- */
+  .counter-box{
+    text-align:center;
+    padding:20px 10px 30px;
+    border-bottom:1px dashed rgba(255,255,255,.15);
+    margin-bottom:24px;
+  }
+  .counter-number{
+    font-family:'Space Mono', monospace;
+    font-size:clamp(2.6rem, 10vw, 4.2rem);
+    color:var(--pink);
+    text-shadow:0 0 18px rgba(255,62,127,.7);
+    line-height:1;
+  }
+  .counter-label{ color:#c9bfe0; margin-top:6px; font-size:.9rem;}
+  .next-visit{
+    margin-top:16px; font-family:'Space Mono', monospace; font-size:.85rem; color:var(--cyan);
+  }
+  .timeline{ list-style:none; padding:0; margin:0; position:relative; }
+  .timeline::before{
+    content:''; position:absolute; left:9px; top:6px; bottom:6px; width:2px;
+    background:linear-gradient(var(--pink), var(--purple), var(--cyan));
+  }
+  .timeline li{
+    position:relative; padding:0 0 26px 34px;
+  }
+  .timeline li::before{
+    content:''; position:absolute; left:2px; top:2px; width:16px; height:16px;
+    border-radius:50%; background:var(--yellow); box-shadow:0 0 10px var(--yellow);
+    border:3px solid var(--bg-deep2);
+  }
+  .timeline .t-date{ font-family:'Space Mono',monospace; font-size:.75rem; color:var(--cyan); }
+  .timeline .t-text{ margin-top:2px; font-weight:800; }
+
+  /* ---------- QUIZ ---------- */
+  .quiz-progress{ font-family:'Space Mono',monospace; font-size:.75rem; color:#c9bfe0; margin-bottom:8px;}
+  .quiz-q{ font-family:'Fredoka',sans-serif; font-size:1.2rem; margin:10px 0 18px; }
+  .quiz-options{ display:grid; gap:12px; }
+  .quiz-options button{
+    text-align:left;
+    background:#1B0E38;
+    border:2px solid rgba(255,255,255,.1);
+    color:var(--white);
+    padding:14px 16px;
+    border-radius:14px;
+    font-family:'Nunito',sans-serif;
+    font-weight:600;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .quiz-options button:hover{ border-color:var(--cyan); }
+  .quiz-options button.correct{ border-color:#4ADE80; background:rgba(74,222,128,.15); }
+  .quiz-options button.wrong{ border-color:var(--pink); background:rgba(255,62,127,.15); }
+  .quiz-result{ text-align:center; padding:20px 0; }
+  .quiz-result .score{
+    font-family:'Space Mono',monospace; font-size:2.4rem; color:var(--yellow);
+  }
+  .quiz-points{ font-family:'Space Mono',monospace; font-size:.85rem; color:var(--cyan); margin-top:6px; }
+  .replay-btn, .next-btn{
+    margin-top:18px;
+    background:var(--pink);
+    color:var(--bg-deep2);
+    border:none;
+    font-family:'Fredoka',sans-serif;
+    font-weight:600;
+    padding:12px 22px;
+    border-radius:999px;
+    cursor:pointer;
+    font-size:.95rem;
+  }
+  .replay-btn:hover, .next-btn:hover{ filter:brightness(1.1); }
+
+  /* ---------- MEMORY ---------- */
+  .memory-stats{
+    display:flex; justify-content:space-between;
+    font-family:'Space Mono',monospace; font-size:.8rem; color:var(--cyan);
+    margin-bottom:16px;
+  }
+  .memory-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:10px;
+  }
+  @media (max-width:480px){ .memory-grid{ grid-template-columns:repeat(3,1fr); } }
+  .mem-card{
+    aspect-ratio:1/1;
+    border-radius:12px;
+    background:#1B0E38;
+    border:2px solid rgba(255,255,255,.1);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.8rem;
+    cursor:pointer;
+    user-select:none;
+    transition:transform .15s;
+  }
+  .mem-card:hover{ transform:scale(1.04); }
+  .mem-card.hidden-face{ background:linear-gradient(160deg,#2a1550,#170B33); font-size:1.4rem; color:var(--purple); }
+  .mem-card.matched{ border-color:#4ADE80; opacity:.55; cursor:default; }
+  .mem-win{ text-align:center; margin-top:18px; font-family:'Fredoka',sans-serif; color:var(--yellow); font-size:1.2rem; display:none;}
+  .mem-win.show{ display:block; }
+
+  footer{
+    text-align:center; margin-top:50px; font-family:'Space Mono',monospace;
+    font-size:.7rem; color:#7a6f9e; letter-spacing:1px;
+  }
+
+  /* ---------- BATTLESHIP ---------- */
+  .bship-hint{ color:#c9bfe0; font-size:.85rem; }
+  .bship-error{ color:var(--pink); font-size:.85rem; min-height:1.2em; }
+  .bship-lobby-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-top:16px;
+  }
+  .bship-lobby-card{
+    background:#1B0E38; border:2px solid rgba(255,255,255,.1); border-radius:16px;
+    padding:20px; text-align:center;
+  }
+  .bship-lobby-card h3{ font-family:'Fredoka',sans-serif; margin:0 0 4px; color:var(--white); }
+  .bship-lobby-card p{ margin:0 0 12px; font-size:.8rem; color:#c9bfe0; }
+  .bship-input{
+    width:100%; text-align:center; text-transform:uppercase; letter-spacing:4px;
+    font-family:'Space Mono',monospace; font-size:1rem; padding:10px; border-radius:10px;
+    border:2px solid rgba(255,255,255,.15); background:#12082A; color:var(--white); margin-bottom:10px;
+  }
+  .bship-code-display{
+    font-family:'Space Mono',monospace; font-size:1.1rem; text-align:center; margin:14px 0;
+  }
+  .bship-code-display span{
+    color:var(--yellow); font-weight:700; letter-spacing:4px;
+    border:1px dashed var(--yellow); padding:4px 12px; border-radius:8px;
+  }
+  .bship-grid{
+    display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; max-width:400px; margin:14px auto;
+  }
+  .bship-cell{
+    aspect-ratio:1/1; background:#1B0E38; border:1px solid rgba(255,255,255,.08);
+    border-radius:4px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:.9rem;
+  }
+  .bship-cell.ship{ background:var(--purple); }
+  .bship-cell.hit{ background:var(--pink); box-shadow:0 0 8px var(--pink); cursor:default; }
+  .bship-cell.miss{ background:#2a1550; color:#8a7fae; cursor:default; }
+  .bship-cell.disabled{ cursor:default; }
+  .bship-turn{
+    text-align:center; font-family:'Fredoka',sans-serif; color:var(--yellow); margin-bottom:6px;
+  }
+  .bship-boards{
+    display:grid; grid-template-columns:1fr 1fr; gap:18px;
+  }
+  @media (max-width:600px){ .bship-boards{ grid-template-columns:1fr; } }
+  .bship-board-label{
+    text-align:center; font-family:'Space Mono',monospace; font-size:.75rem; color:var(--cyan); margin-bottom:4px;
+  }
+  .bship-result-text{ font-family:'Fredoka',sans-serif; font-size:1.4rem; color:var(--yellow); }
+
+  /* ---------- TIC-TAC-TOE ---------- */
+  .ttt-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;
+    max-width:340px; margin:20px auto;
+  }
+  .ttt-cell{
+    aspect-ratio:1/1; background:#1B0E38; border:2px solid rgba(255,255,255,.1);
+    border-radius:14px; cursor:pointer; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ttt-cell.disabled{ cursor:default; }
+  .ttt-cell.win{ border-color:var(--yellow); box-shadow:0 0 14px var(--yellow); }
+  .ttt-cell img, .ttt-cell .ttt-mark{
+    width:100%; height:100%; object-fit:cover; border-radius:12px;
+  }
+  .ttt-cell .ttt-mark{
+    display:flex; align-items:center; justify-content:center; font-size:2rem;
+    background:var(--panel);
+  }
+
+  /* ---------- GEOSOUVENIRS ---------- */
+  .geo-round-header{
+    display:flex; justify-content:space-between; font-family:'Space Mono',monospace;
+    font-size:.8rem; color:var(--cyan); margin-bottom:10px;
+  }
+  .geo-clue{
+    font-family:'Fredoka',sans-serif; font-size:1.1rem; color:var(--yellow);
+    background:#1B0E38; border:2px solid rgba(255,255,255,.1); border-radius:14px;
+    padding:14px 16px; margin-bottom:14px;
+  }
+  .geo-map{
+    width:100%; height:360px; border-radius:16px; overflow:hidden;
+    border:2px solid rgba(255,255,255,.15); margin-bottom:14px;
+  }
+  .geo-round-result{
+    background:#1B0E38; border:2px solid rgba(255,255,255,.1); border-radius:14px;
+    padding:14px 16px; margin:14px 0; font-family:'Nunito',sans-serif;
+  }
+  .geo-round-result .geo-distance{
+    font-family:'Space Mono',monospace; font-size:1.4rem; color:var(--pink); margin-bottom:4px;
+  }
+  .geo-round-result .geo-points{ color:var(--cyan); font-size:.9rem; }
+
+  /* ---------- WHOAMI ---------- */
+  .whoami{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin-bottom:22px; font-family:'Space Mono',monospace; font-size:.75rem;
+  }
+  .whoami-label{ color:#c9bfe0; }
+  .who-btn{
+    background:#1B0E38; border:2px solid rgba(255,255,255,.15); color:var(--white);
+    padding:7px 16px; border-radius:999px; cursor:pointer; font-family:'Nunito',sans-serif;
+    font-weight:700; font-size:.8rem;
+  }
+  .who-btn.active{ border-color:var(--yellow); background:rgba(255,210,63,.15); color:var(--yellow); }
+
+  /* ---------- LEADERBOARD / OOTD ---------- */
+  .lb-points{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:20px 0 30px;
+  }
+  .lb-card{
+    background:#1B0E38; border:2px solid rgba(255,255,255,.1); border-radius:16px;
+    padding:20px; text-align:center;
+  }
+  .lb-name{ display:block; font-family:'Fredoka',sans-serif; font-size:1.05rem; margin-bottom:6px; }
+  .lb-score{
+    display:block; font-family:'Space Mono',monospace; font-size:1.8rem; color:var(--yellow);
+  }
+  .ootd-title{ font-family:'Fredoka',sans-serif; color:var(--white); margin-bottom:4px; }
+  .ootd-status{ margin:16px 0; }
+  .ootd-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#1B0E38; border:2px solid rgba(255,255,255,.08); border-radius:12px;
+    padding:10px 16px; margin-bottom:8px; font-weight:700;
+  }
+  .ootd-check{ font-size:1.2rem; }
+  .lb-scale{
+    list-style:none; padding:0; margin:0 0 24px;
+    font-size:.85rem; color:#c9bfe0; line-height:2;
+  }
+  .lb-scale b{ color:var(--yellow); }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="wrap">
+
+  <div class="marquee">
+    <div class="lights">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <h1 class="title" id="mainTitle">Notre Arcade</h1>
+    <div class="subtitle">Insert coin pour jouer</div>
+  </div>
+
+  <!-- MENU -->
+  <div id="menu" class="screen active">
+    <div class="whoami">
+      <span class="whoami-label">Tu es :</span>
+      <button id="whoBtn1" class="who-btn" onclick="setIdentity('name1')"></button>
+      <button id="whoBtn2" class="who-btn" onclick="setIdentity('name2')"></button>
+    </div>
+    <div class="cabinets">
+      <div class="cabinet" style="--accent:var(--pink)" tabindex="0" onclick="showScreen('timeline')">
+        <span class="emoji">💗</span>
+        <h3>Compteur & Timeline</h3>
+        <p>Depuis combien de temps on s'aime</p>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:var(--yellow)" tabindex="0" onclick="showScreen('quiz')">
+        <span class="emoji">🕹️</span>
+        <h3>Quiz de couple</h3>
+        <p>Tu me connais vraiment ?</p>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#F4C542" tabindex="0" onclick="showScreen('leaderboard')">
+        <span class="emoji">🏆</span>
+        <h3>Classement</h3>
+        <p>Points, victoires & OOTD</p>
+        <span class="coin">VOIR</span>
+      </div>
+      <div class="cabinet" style="--accent:var(--cyan)" tabindex="0" onclick="showScreen('memory')">
+        <span class="emoji">🧠</span>
+        <h3>Memory</h3>
+        <p>Retrouve les paires de nous deux</p>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#4ADE80" tabindex="0" onclick="showScreen('battleship')">
+        <span class="emoji">🚢</span>
+        <h3>Bataille navale</h3>
+        <p>Jouez en même temps, chacun chez soi</p>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#FF9F1C" tabindex="0" onclick="showScreen('ttt')">
+        <span class="emoji">📸</span>
+        <h3>Morpion à nous</h3>
+        <p>Nos photos à la place des croix et ronds</p>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#FF6B9D" tabindex="0" onclick="showScreen('geo')">
+        <span class="emoji">🗺️</span>
+        <h3>GeoSouvenirs</h3>
+        <p>Retrouve nos lieux au mètre près</p>
+        <span class="coin">JOUER</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE / COUNTER -->
+  <div id="timeline" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>💗 Compteur & Timeline</h2>
+    <div class="counter-box">
+      <div class="counter-number" id="daysCount">0</div>
+      <div class="counter-label">jours ensemble</div>
+      <div class="next-visit" id="nextVisit"></div>
+    </div>
+    <ul class="timeline" id="timelineList"></ul>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quiz" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🕹️ Quiz de couple</h2>
+    <div id="quizBody"></div>
+  </div>
+
+  <!-- MEMORY -->
+  <div id="memory" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🧠 Memory</h2>
+    <div class="memory-stats">
+      <span id="memMoves">Coups : 0</span>
+      <span id="memPairs">Paires : 0 / 0</span>
+    </div>
+    <div class="memory-grid" id="memoryGrid"></div>
+    <div class="mem-win" id="memWin">🎉 Bien joué, on forme une bonne équipe !</div>
+  </div>
+
+  <!-- BATTLESHIP -->
+  <div id="battleship" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🚢 Bataille navale</h2>
+    <p class="bship-hint">Jouable à distance : un(e) de vous deux crée une partie et envoie le code à l'autre (par SMS par exemple).</p>
+
+    <!-- Lobby: create or join -->
+    <div id="bshipLobby">
+      <div class="bship-lobby-grid">
+        <div class="bship-lobby-card">
+          <h3>Créer une partie</h3>
+          <p>Génère un code à partager</p>
+          <button class="replay-btn" onclick="bshipCreateRoom()">Créer</button>
+        </div>
+        <div class="bship-lobby-card">
+          <h3>Rejoindre une partie</h3>
+          <input id="bshipJoinInput" class="bship-input" placeholder="CODE" maxlength="5">
+          <button class="replay-btn" onclick="bshipJoinRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <p id="bshipLobbyError" class="bship-error"></p>
+    </div>
+
+    <!-- Waiting for opponent to connect -->
+    <div id="bshipWaitingOpponent" style="display:none">
+      <div class="bship-code-display">
+        Code de la partie : <span id="bshipCodeShown"></span>
+      </div>
+      <p class="bship-hint">En attente que ton/ta partenaire rejoigne avec ce code…</p>
+    </div>
+
+    <!-- Ship placement -->
+    <div id="bshipPlacement" style="display:none">
+      <div class="bship-code-display">Partie : <span id="bshipCodeShown2"></span></div>
+      <p id="bshipPlaceInstruction" class="bship-hint"></p>
+      <button class="back-btn" id="bshipRotateBtn" onclick="bshipToggleOrientation()">Orientation : Horizontal</button>
+      <div class="bship-grid" id="bshipPlaceGrid"></div>
+      <p id="bshipPlaceStatus" class="bship-hint"></p>
+    </div>
+
+    <!-- Waiting for both ready -->
+    <div id="bshipWaitingReady" style="display:none">
+      <p class="bship-hint">Flotte prête ! En attente que ton/ta partenaire termine son placement…</p>
+    </div>
+
+    <!-- Game -->
+    <div id="bshipGame" style="display:none">
+      <p id="bshipTurnIndicator" class="bship-turn"></p>
+      <div class="bship-boards">
+        <div>
+          <div class="bship-board-label">Flotte ennemie (clique pour tirer)</div>
+          <div class="bship-grid" id="bshipEnemyGrid"></div>
+        </div>
+        <div>
+          <div class="bship-board-label">Ta flotte</div>
+          <div class="bship-grid" id="bshipOwnGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="bshipResult" style="display:none">
+      <div class="quiz-result">
+        <div id="bshipResultText" class="bship-result-text"></div>
+        <button class="replay-btn" onclick="bshipReset()">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIC-TAC-TOE / MORPION -->
+  <div id="ttt" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>📸 Morpion à nous</h2>
+    <p class="bship-hint">Même principe que la bataille navale : crée ou rejoins une partie avec un code.</p>
+
+    <div id="tttLobby">
+      <div class="bship-lobby-grid">
+        <div class="bship-lobby-card">
+          <h3>Créer une partie</h3>
+          <p>Génère un code à partager</p>
+          <button class="replay-btn" onclick="tttCreateRoom()">Créer</button>
+        </div>
+        <div class="bship-lobby-card">
+          <h3>Rejoindre une partie</h3>
+          <input id="tttJoinInput" class="bship-input" placeholder="CODE" maxlength="5">
+          <button class="replay-btn" onclick="tttJoinRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <p id="tttLobbyError" class="bship-error"></p>
+    </div>
+
+    <div id="tttWaitingOpponent" style="display:none">
+      <div class="bship-code-display">Code de la partie : <span id="tttCodeShown"></span></div>
+      <p class="bship-hint">En attente que ton/ta partenaire rejoigne avec ce code…</p>
+    </div>
+
+    <div id="tttGame" style="display:none">
+      <p id="tttTurnIndicator" class="bship-turn"></p>
+      <div class="ttt-grid" id="tttBoard"></div>
+    </div>
+
+    <div id="tttResult" style="display:none">
+      <div class="quiz-result">
+        <div id="tttResultText" class="bship-result-text"></div>
+        <button class="replay-btn" onclick="tttReset()">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GEOSOUVENIRS -->
+  <div id="geo" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🗺️ GeoSouvenirs</h2>
+    <p class="bship-hint">Clique sur la carte à l'endroit exact dont parle l'indice, zoome pour être précis(e) !</p>
+
+    <div id="geoRoundBody">
+      <div class="geo-round-header">
+        <span id="geoRoundCount"></span>
+        <span id="geoScoreTotal"></span>
+      </div>
+      <p id="geoClue" class="geo-clue"></p>
+      <div id="geoMap" class="geo-map"></div>
+      <button id="geoValidateBtn" class="replay-btn" onclick="geoValidateGuess()" disabled>Valider ma réponse</button>
+      <div id="geoRoundResult" class="geo-round-result" style="display:none"></div>
+      <button id="geoNextBtn" class="next-btn" style="display:none" onclick="geoNextRound()">Lieu suivant</button>
+    </div>
+
+    <div id="geoFinal" style="display:none">
+      <div class="quiz-result">
+        <div>Score final</div>
+        <div class="score" id="geoFinalScore"></div>
+        <button class="replay-btn" onclick="geoReset()">Rejouer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD / OOTD -->
+  <div id="leaderboard" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🏆 Classement</h2>
+    <p class="bship-hint">Gagner un jeu rapporte des points, poster son OOTD aussi. Premier à combien vous voulez, c'est vous qui décidez !</p>
+    <ul class="lb-scale">
+      <li>🚢 Bataille navale gagnée — <b>100 pts</b></li>
+      <li>📸 Morpion gagné — <b>50 pts</b></li>
+      <li>🕹️ Quiz — <b>20 pts</b> par bonne réponse</li>
+      <li>🧠 Memory — <b>20 à 90 pts</b> selon le nombre de coups</li>
+      <li>🗺️ GeoSouvenirs — jusqu'à <b>100 pts</b> par lieu selon la précision</li>
+      <li>👗 OOTD posté — <b>50 pts</b>/jour</li>
+    </ul>
+
+    <div class="lb-points">
+      <div class="lb-card">
+        <span id="lbName1" class="lb-name"></span>
+        <span id="lbScore1" class="lb-score"></span>
+      </div>
+      <div class="lb-card">
+        <span id="lbName2" class="lb-name"></span>
+        <span id="lbScore2" class="lb-score"></span>
+      </div>
+    </div>
+
+    <h3 class="ootd-title">👗 OOTD du jour</h3>
+    <p class="bship-hint">Envoyez-vous la vidéo de votre tenue comme d'habitude (SMS, Snap…), puis cochez ici pour valider vos +50 points.</p>
+    <div class="ootd-status">
+      <div class="ootd-row">
+        <span id="ootdName1"></span>
+        <span id="ootdCheck1" class="ootd-check"></span>
+      </div>
+      <div class="ootd-row">
+        <span id="ootdName2"></span>
+        <span id="ootdCheck2" class="ootd-check"></span>
+      </div>
+    </div>
+    <button id="ootdBtn" class="replay-btn" onclick="ootdCheckIn()">J'ai posté mon OOTD aujourd'hui (+50)</button>
+  </div>
+
+  <footer>NOTRE ARCADE — FAIT AVEC 💜 À DISTANCE</footer>
+</div>
+
+<script>
+/* ============================================================
+   DONNÉES À PERSONNALISER — modifie juste ce qui suit
+   ============================================================ */
+
+const COUPLE = {
+  name1: "Toi",
+  name2: "Elle",
+  // Date de début de la relation, format AAAA-MM-JJ
+  startDate: "2024-01-01",
+  // Prochaine fois que vous vous voyez (laisse "" si tu ne sais pas encore)
+  nextVisitDate: ""
+};
+
+const TIMELINE_EVENTS = [
+  { date: "1 janv. 2024", text: "Le jour où tout a commencé" },
+  { date: "14 févr. 2024", text: "Notre premier Saint-Valentin" },
+  { date: "été 2024", text: "Notre premier voyage ensemble" },
+  { date: "aujourd'hui", text: "Toujours plus proches, même à distance" }
+];
+
+const QUIZ_QUESTIONS = [
+  {
+    q: "Où on s'est rencontrés ?",
+    options: ["À une soirée", "À la fac", "Sur une appli", "Grâce à des amis"],
+    answer: 0
+  },
+  {
+    q: "C'est quoi notre chanson ?",
+    options: ["Exemple chanson 1", "Exemple chanson 2", "Exemple chanson 3", "Exemple chanson 4"],
+    answer: 1
+  },
+  {
+    q: "Notre destination de rêve pour se retrouver ?",
+    options: ["Paris", "Tokyo", "New York", "Une plage tranquille"],
+    answer: 3
+  },
+  {
+    q: "Mon petit surnom pour toi c'est...",
+    options: ["Exemple surnom 1", "Exemple surnom 2", "Exemple surnom 3", "Exemple surnom 4"],
+    answer: 2
+  }
+];
+
+// Chaque paire = un emoji (facile à remplacer par une vraie photo, voir plus bas)
+const MEMORY_PAIRS = ["💜", "🌙", "✈️", "☕", "🎬", "🌻"];
+// Pour utiliser de vraies photos plus tard, remplace un emoji par :
+// '<img src="photo1.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
+// et adapte le CSS .mem-card si besoin.
+
+// Photos utilisées comme pions dans le Morpion (à la place des croix/ronds).
+// Laisse "" pour l'instant, un emoji de secours s'affichera. Mets l'URL de vos
+// photos ici quand tu les as (ex: "https://.../photo-toi.jpg").
+const TTT_PHOTO_P1 = "";        // ta photo (créateur/créatrice de la partie)
+const TTT_PHOTO_P1_FALLBACK = "😎";
+const TTT_PHOTO_P2 = "";        // sa photo (celle/celui qui rejoint)
+const TTT_PHOTO_P2_FALLBACK = "😍";
+
+// Lieux à retrouver dans GeoSouvenirs. Remplace lat/lng par les vraies coordonnées
+// (clic droit sur Google Maps > "Coordonnées" copie lat, lng exactement).
+// clue = l'indice texte qu'elle voit avant de deviner.
+const GEO_LOCATIONS = [
+  { clue: "Le café où on a pris notre tout premier petit-déj ensemble ☕", lat: 48.8566, lng: 2.3522 },
+  { clue: "Le banc où on a regardé notre premier coucher de soleil 🌅", lat: 45.7640, lng: 4.8357 },
+  { clue: "L'endroit où tu m'as battu au frisbee dans le parc 🥏", lat: 43.2965, lng: 5.3698 }
+];
+
+// Vue de départ de la carte quand une manche commence (avant qu'elle ne zoome/déplace).
+// Mets les coordonnées et le zoom qui correspondent à votre région (zoom plus petit = vue plus large).
+const GEO_DEFAULT_VIEW = { lat: 46.6, lng: 2.5, zoom: 5 };
+
+// Barème du classement général — change les chiffres si tu veux rééquilibrer.
+const POINTS = {
+  battleshipWin: 100,          // gagner une bataille navale
+  tttWin: 50,                  // gagner un morpion
+  tttDraw: 10,                 // match nul au morpion (consolation pour les deux)
+  quizPerCorrect: 20,          // par bonne réponse au quiz
+  memoryBase: 100,             // points max au memory (partie jouée parfaitement)
+  memoryPenaltyPerExtraMove: 5,// points en moins par coup "en trop"
+  memoryMin: 20,                // score plancher au memory
+  geoMaxPerRound: 100,          // points max par lieu deviné à GeoSouvenirs (0m = ce max)
+  ootdDaily: 50                 // poster son OOTD dans la journée
+};
+
+/* ============================================================
+   FIN DES DONNÉES À PERSONNALISER — le reste fait tourner le site
+   ============================================================ */
+
+document.getElementById('mainTitle').textContent = `${COUPLE.name1} & ${COUPLE.name2}`;
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+  if(id === 'timeline') initTimeline();
+  if(id === 'quiz') initQuiz();
+  if(id === 'memory') initMemory();
+  if(id === 'battleship') bshipInit(); else bshipStopPolling();
+  if(id === 'ttt') tttInit(); else tttStopPolling();
+  if(id === 'geo') geoInit();
+  if(id === 'leaderboard') renderLeaderboardScreen();
+}
+
+/* ---------- TIMELINE ---------- */
+function initTimeline(){
+  const start = new Date(COUPLE.startDate);
+  const now = new Date();
+  const days = Math.max(0, Math.floor((now - start) / (1000*60*60*24)));
+  document.getElementById('daysCount').textContent = days;
+
+  const nextVisitEl = document.getElementById('nextVisit');
+  if(COUPLE.nextVisitDate){
+    const visit = new Date(COUPLE.nextVisitDate);
+    const daysLeft = Math.ceil((visit - now) / (1000*60*60*24));
+    nextVisitEl.textContent = daysLeft >= 0
+      ? `${daysLeft} jour(s) avant de se revoir 🧳`
+      : `On s'est revus il y a ${Math.abs(daysLeft)} jour(s) 💫`;
+  } else {
+    nextVisitEl.textContent = "Prochaine visite : à définir ✨";
+  }
+
+  const list = document.getElementById('timelineList');
+  list.innerHTML = '';
+  TIMELINE_EVENTS.forEach(ev => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="t-date">${ev.date}</div><div class="t-text">${ev.text}</div>`;
+    list.appendChild(li);
+  });
+}
+
+/* ---------- QUIZ ---------- */
+let quizState = { index:0, score:0 };
+
+function initQuiz(){
+  quizState = { index:0, score:0 };
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion(){
+  const body = document.getElementById('quizBody');
+  if(quizState.index >= QUIZ_QUESTIONS.length){
+    const points = quizState.score * 20;
+    if(myIdentity) awardPoints(myIdentity, points);
+    body.innerHTML = `
+      <div class="quiz-result">
+        <div>Score final</div>
+        <div class="score">${quizState.score} / ${QUIZ_QUESTIONS.length}</div>
+        <div class="quiz-points">+${points} points au classement</div>
+        <button class="replay-btn" onclick="initQuiz()">Rejouer</button>
+      </div>`;
+    return;
+  }
+  const q = QUIZ_QUESTIONS[quizState.index];
+  body.innerHTML = `
+    <div class="quiz-progress">Question ${quizState.index+1} / ${QUIZ_QUESTIONS.length}</div>
+    <div class="quiz-q">${q.q}</div>
+    <div class="quiz-options" id="quizOptions"></div>
+  `;
+  const optWrap = document.getElementById('quizOptions');
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.onclick = () => answerQuiz(i);
+    optWrap.appendChild(btn);
+  });
+}
+
+function answerQuiz(i){
+  const q = QUIZ_QUESTIONS[quizState.index];
+  const buttons = document.querySelectorAll('#quizOptions button');
+  buttons.forEach(b => b.onclick = null);
+  buttons[q.answer].classList.add('correct');
+  if(i !== q.answer){ buttons[i].classList.add('wrong'); }
+  else { quizState.score++; }
+
+  const body = document.getElementById('quizBody');
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = (quizState.index === QUIZ_QUESTIONS.length - 1) ? 'Voir le score' : 'Question suivante';
+  nextBtn.onclick = () => { quizState.index++; renderQuizQuestion(); };
+  body.appendChild(nextBtn);
+}
+
+/* ---------- MEMORY ---------- */
+let memState = {};
+
+function initMemory(){
+  const deck = [...MEMORY_PAIRS, ...MEMORY_PAIRS]
+    .map(v => ({ value:v, matched:false }))
+    .sort(() => Math.random() - 0.5);
+
+  memState = { deck, first:null, second:null, moves:0, matched:0, lock:false };
+
+  document.getElementById('memMoves').textContent = 'Coups : 0';
+  document.getElementById('memPairs').textContent = `Paires : 0 / ${MEMORY_PAIRS.length}`;
+  document.getElementById('memWin').classList.remove('show');
+
+  const grid = document.getElementById('memoryGrid');
+  grid.innerHTML = '';
+  deck.forEach((card, i) => {
+    const el = document.createElement('div');
+    el.className = 'mem-card hidden-face';
+    el.textContent = '?';
+    el.dataset.index = i;
+    el.onclick = () => flipCard(i, el);
+    grid.appendChild(el);
+  });
+}
+
+function flipCard(i, el){
+  if(memState.lock || el.classList.contains('matched') || el.classList.contains('flipped')) return;
+
+  el.classList.remove('hidden-face');
+  el.classList.add('flipped');
+  el.textContent = memState.deck[i].value;
+
+  if(memState.first === null){
+    memState.first = i;
+    return;
+  }
+
+  memState.second = i;
+  memState.moves++;
+  document.getElementById('memMoves').textContent = `Coups : ${memState.moves}`;
+  memState.lock = true;
+
+  const firstEl = document.querySelector(`[data-index="${memState.first}"]`);
+  const secondEl = el;
+
+  if(memState.deck[memState.first].value === memState.deck[memState.second].value){
+    setTimeout(() => {
+      firstEl.classList.add('matched');
+      secondEl.classList.add('matched');
+      memState.matched++;
+      document.getElementById('memPairs').textContent = `Paires : ${memState.matched} / ${MEMORY_PAIRS.length}`;
+      memState.first = null; memState.second = null; memState.lock = false;
+      if(memState.matched === MEMORY_PAIRS.length){
+        const points = Math.max(20, 120 - memState.moves * 5);
+        if(myIdentity) awardPoints(myIdentity, points);
+        const winEl = document.getElementById('memWin');
+        winEl.textContent = `🎉 Bien joué, on forme une bonne équipe ! +${points} points`;
+        winEl.classList.add('show');
+      }
+    }, 400);
+  } else {
+    setTimeout(() => {
+      firstEl.classList.remove('flipped');
+      firstEl.classList.add('hidden-face');
+      firstEl.textContent = '?';
+      secondEl.classList.remove('flipped');
+      secondEl.classList.add('hidden-face');
+      secondEl.textContent = '?';
+      memState.first = null; memState.second = null; memState.lock = false;
+    }, 700);
+  }
+}
+
+/* ============================================================
+   BATTAILLE NAVALE — jouable à distance via stockage partagé
+   ============================================================ */
+
+const BSHIP_SHIPS = [
+  { name:'Porte-avions', len:5 },
+  { name:'Croiseur', len:4 },
+  { name:'Contre-torpilleur', len:3 },
+  { name:'Sous-marin', len:3 },
+  { name:'Torpilleur', len:2 }
+];
+const BSHIP_SIZE = 10;
+
+let bship = {
+  role: null,       // 'p1' or 'p2'
+  code: null,
+  orientation: 'H',
+  shipIndex: 0,
+  myShips: [],
+  pollTimer: null,
+  lastRenderedStatus: null
+};
+
+function bshipKey(code){ return 'bship_room:' + code; }
+
+async function bshipSaveState(state){
+  state.updatedAt = Date.now();
+  await window.storage.set(bshipKey(bship.code), JSON.stringify(state), true);
+  return state;
+}
+async function bshipLoadState(code){
+  try{
+    const res = await window.storage.get(bshipKey(code), true);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function bshipRememberSession(code, role){
+  try{ await window.storage.set('bship_my_session', JSON.stringify({code, role}), false); }catch(e){}
+}
+async function bshipGetRememberedSession(){
+  try{
+    const res = await window.storage.get('bship_my_session', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+function bshipShowPane(id){
+  ['bshipLobby','bshipWaitingOpponent','bshipPlacement','bshipWaitingReady','bshipGame','bshipResult']
+    .forEach(p => document.getElementById(p).style.display = (p === id) ? 'block' : 'none');
+}
+
+function bshipRandomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+async function bshipInit(){
+  document.getElementById('bshipLobbyError').textContent = '';
+  const remembered = await bshipGetRememberedSession();
+  if(remembered && remembered.code){
+    const state = await bshipLoadState(remembered.code);
+    if(state){
+      bship.role = remembered.role;
+      bship.code = remembered.code;
+      bshipResumeFromState(state);
+      return;
+    }
+  }
+  bshipShowPane('bshipLobby');
+}
+
+function bshipResumeFromState(state){
+  const me = state[bship.role];
+  if(!me){ bshipShowPane('bshipLobby'); return; }
+  if(state.status === 'over'){
+    bshipRenderResult(state);
+  } else if(me.ready && state.status === 'playing'){
+    bshipRenderGame(state);
+  } else if(me.ready){
+    bshipShowPane('bshipWaitingReady');
+  } else {
+    bshipEnterPlacement(state);
+  }
+  bshipStartPolling();
+}
+
+async function bshipCreateRoom(){
+  const code = bshipRandomCode();
+  bship.role = 'p1';
+  bship.code = code;
+  const state = {
+    code,
+    status: 'placing',
+    p2Joined: false,
+    p1: { ready:false, ships:[], shots:[] },
+    p2: { ready:false, ships:[], shots:[] },
+    turn: 'p1',
+    winner: null
+  };
+  await bshipSaveState(state);
+  await bshipRememberSession(code, 'p1');
+  document.getElementById('bshipCodeShown').textContent = code;
+  bshipShowPane('bshipWaitingOpponent');
+  bshipStartPolling();
+}
+
+async function bshipJoinRoom(){
+  const input = document.getElementById('bshipJoinInput');
+  const code = input.value.trim().toUpperCase();
+  const errorEl = document.getElementById('bshipLobbyError');
+  if(!code){ errorEl.textContent = 'Entre un code.'; return; }
+  const state = await bshipLoadState(code);
+  if(!state){ errorEl.textContent = "Ce code n'existe pas."; return; }
+  bship.role = 'p2';
+  bship.code = code;
+  state.p2Joined = true;
+  await bshipSaveState(state);
+  await bshipRememberSession(code, 'p2');
+  bshipEnterPlacement(state);
+  bshipStartPolling();
+}
+
+function bshipEnterPlacement(state){
+  bship.myShips = (state[bship.role] && state[bship.role].ships) || [];
+  bship.shipIndex = 0;
+  document.getElementById('bshipCodeShown2').textContent = bship.code;
+  bshipShowPane('bshipPlacement');
+  bshipRenderPlaceInstruction();
+  bshipRenderPlaceGrid();
+}
+
+function bshipToggleOrientation(){
+  bship.orientation = bship.orientation === 'H' ? 'V' : 'H';
+  document.getElementById('bshipRotateBtn').textContent =
+    'Orientation : ' + (bship.orientation === 'H' ? 'Horizontal' : 'Vertical');
+}
+
+function bshipRenderPlaceInstruction(){
+  const el = document.getElementById('bshipPlaceInstruction');
+  if(bship.shipIndex >= BSHIP_SHIPS.length){
+    el.textContent = 'Flotte placée !';
+    return;
+  }
+  const ship = BSHIP_SHIPS[bship.shipIndex];
+  el.textContent = `Place ton ${ship.name} (${ship.len} cases) — clique la case de départ.`;
+}
+
+function bshipRenderPlaceGrid(){
+  const grid = document.getElementById('bshipPlaceGrid');
+  grid.innerHTML = '';
+  for(let i=0;i<BSHIP_SIZE*BSHIP_SIZE;i++){
+    const cell = document.createElement('div');
+    cell.className = 'bship-cell' + (bship.myShips.includes(i) ? ' ship' : '');
+    cell.onclick = () => bshipPlaceShipAt(i);
+    grid.appendChild(cell);
+  }
+  const statusEl = document.getElementById('bshipPlaceStatus');
+  if(bship.shipIndex >= BSHIP_SHIPS.length){
+    statusEl.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.className = 'replay-btn';
+    btn.textContent = 'Valider ma flotte';
+    btn.onclick = bshipConfirmReady;
+    statusEl.appendChild(btn);
+  } else {
+    statusEl.textContent = '';
+  }
+}
+
+function bshipCellsFor(startIndex, len, orientation){
+  const row = Math.floor(startIndex / BSHIP_SIZE);
+  const col = startIndex % BSHIP_SIZE;
+  const cells = [];
+  for(let k=0;k<len;k++){
+    const r = orientation === 'V' ? row + k : row;
+    const c = orientation === 'H' ? col + k : col;
+    if(r >= BSHIP_SIZE || c >= BSHIP_SIZE) return null;
+    cells.push(r * BSHIP_SIZE + c);
+  }
+  return cells;
+}
+
+function bshipPlaceShipAt(startIndex){
+  if(bship.shipIndex >= BSHIP_SHIPS.length) return;
+  const ship = BSHIP_SHIPS[bship.shipIndex];
+  const cells = bshipCellsFor(startIndex, ship.len, bship.orientation);
+  if(!cells){ alert('Ça dépasse la grille, essaie ailleurs.'); return; }
+  const overlap = cells.some(c => bship.myShips.includes(c));
+  if(overlap){ alert('Ça chevauche un autre bateau.'); return; }
+  bship.myShips.push(...cells);
+  bship.shipIndex++;
+  bshipRenderPlaceInstruction();
+  bshipRenderPlaceGrid();
+}
+
+async function bshipConfirmReady(){
+  const state = await bshipLoadState(bship.code);
+  if(!state) return;
+  state[bship.role].ships = bship.myShips;
+  state[bship.role].ready = true;
+  if(state.p1.ready && state.p2.ready && state.status !== 'playing'){
+    state.status = 'playing';
+  }
+  await bshipSaveState(state);
+  if(state.status === 'playing'){
+    bshipRenderGame(state);
+  } else {
+    bshipShowPane('bshipWaitingReady');
+  }
+}
+
+function bshipStartPolling(){
+  bshipStopPolling();
+  bship.pollTimer = setInterval(bshipPoll, 2500);
+}
+function bshipStopPolling(){
+  if(bship.pollTimer){ clearInterval(bship.pollTimer); bship.pollTimer = null; }
+}
+
+async function bshipPoll(){
+  if(!bship.code || !bship.role) return;
+  const state = await bshipLoadState(bship.code);
+  if(!state) return;
+
+  if(state.status === 'over'){
+    bshipRenderResult(state);
+    return;
+  }
+  if(state.status === 'playing'){
+    bshipRenderGame(state);
+    return;
+  }
+  // still placing
+  const me = state[bship.role];
+  if(me && me.ready){
+    bshipShowPane('bshipWaitingReady');
+  } else if(document.getElementById('bshipWaitingOpponent').style.display === 'block' && state.p2Joined){
+    bshipEnterPlacement(state);
+  }
+}
+
+function bshipRenderGame(state){
+  bshipShowPane('bshipGame');
+  const me = bship.role;
+  const opp = me === 'p1' ? 'p2' : 'p1';
+  const myState = state[me];
+  const oppState = state[opp];
+
+  const turnEl = document.getElementById('bshipTurnIndicator');
+  turnEl.textContent = state.turn === me ? '🎯 À toi de tirer !' : "⏳ Tour de ton/ta partenaire…";
+
+  // Enemy grid: click to fire, show my shots
+  const enemyGrid = document.getElementById('bshipEnemyGrid');
+  enemyGrid.innerHTML = '';
+  for(let i=0;i<BSHIP_SIZE*BSHIP_SIZE;i++){
+    const cell = document.createElement('div');
+    const shot = myState.shots.includes(i);
+    let cls = 'bship-cell';
+    if(shot){
+      cls += oppState.ships.includes(i) ? ' hit' : ' miss';
+    }
+    cell.className = cls;
+    if(!shot && state.turn === me){
+      cell.onclick = () => bshipFire(i);
+    } else {
+      cell.classList.add('disabled');
+    }
+    enemyGrid.appendChild(cell);
+  }
+
+  // Own grid: show my ships + opponent's shots on me
+  const ownGrid = document.getElementById('bshipOwnGrid');
+  ownGrid.innerHTML = '';
+  for(let i=0;i<BSHIP_SIZE*BSHIP_SIZE;i++){
+    const cell = document.createElement('div');
+    let cls = 'bship-cell disabled';
+    const isShip = myState.ships.includes(i);
+    const wasShot = oppState.shots.includes(i);
+    if(isShip) cls += ' ship';
+    if(wasShot) cls += isShip ? ' hit' : ' miss';
+    cell.className = cls;
+    ownGrid.appendChild(cell);
+  }
+}
+
+async function bshipFire(index){
+  const state = await bshipLoadState(bship.code);
+  if(!state || state.turn !== bship.role || state.status !== 'playing') return;
+  const me = bship.role;
+  const opp = me === 'p1' ? 'p2' : 'p1';
+  if(state[me].shots.includes(index)) return;
+
+  state[me].shots.push(index);
+  const oppShips = state[opp].ships;
+  const allSunk = oppShips.every(c => state[me].shots.includes(c));
+  if(allSunk){
+    state.status = 'over';
+    state.winner = me;
+  } else {
+    state.turn = opp;
+  }
+  await bshipSaveState(state);
+  if(state.status === 'over'){
+    bshipRenderResult(state);
+  } else {
+    bshipRenderGame(state);
+  }
+}
+
+function bshipRenderResult(state){
+  bshipStopPolling();
+  bshipShowPane('bshipResult');
+  const won = state.winner === bship.role;
+  document.getElementById('bshipResultText').textContent = won
+    ? '🎉 Victoire ! Toute la flotte adverse est coulée.'
+    : '💥 Défaite… ta flotte a été coulée.';
+  if(won && !state.pointsAwarded && myIdentity){
+    state.pointsAwarded = true;
+    awardPoints(myIdentity, 100);
+    bshipSaveState(state);
+  }
+}
+
+async function bshipReset(){
+  try{ await window.storage.delete('bship_my_session', false); }catch(e){}
+  bship = { role:null, code:null, orientation:'H', shipIndex:0, myShips:[], pollTimer:null, lastRenderedStatus:null };
+  bshipStopPolling();
+  document.getElementById('bshipJoinInput').value = '';
+  bshipShowPane('bshipLobby');
+}
+
+/* ============================================================
+   MORPION À NOUS — même principe, avec vos photos comme pions
+   ============================================================ */
+
+const TTT_WIN_LINES = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+let ttt = { role:null, code:null, pollTimer:null };
+
+function tttKey(code){ return 'ttt_room:' + code; }
+
+async function tttSaveState(state){
+  state.updatedAt = Date.now();
+  await window.storage.set(tttKey(ttt.code), JSON.stringify(state), true);
+  return state;
+}
+async function tttLoadState(code){
+  try{
+    const res = await window.storage.get(tttKey(code), true);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function tttRememberSession(code, role){
+  try{ await window.storage.set('ttt_my_session', JSON.stringify({code, role}), false); }catch(e){}
+}
+async function tttGetRememberedSession(){
+  try{
+    const res = await window.storage.get('ttt_my_session', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+function tttShowPane(id){
+  ['tttLobby','tttWaitingOpponent','tttGame','tttResult']
+    .forEach(p => document.getElementById(p).style.display = (p === id) ? 'block' : 'none');
+}
+
+function tttRandomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+async function tttInit(){
+  document.getElementById('tttLobbyError').textContent = '';
+  const remembered = await tttGetRememberedSession();
+  if(remembered && remembered.code){
+    const state = await tttLoadState(remembered.code);
+    if(state){
+      ttt.role = remembered.role;
+      ttt.code = remembered.code;
+      if(state.status === 'over'){ tttRenderResult(state); }
+      else if(state.status === 'playing'){ tttRenderGame(state); }
+      else { document.getElementById('tttCodeShown').textContent = ttt.code; tttShowPane('tttWaitingOpponent'); }
+      tttStartPolling();
+      return;
+    }
+  }
+  tttShowPane('tttLobby');
+}
+
+async function tttCreateRoom(){
+  const code = tttRandomCode();
+  ttt.role = 'p1';
+  ttt.code = code;
+  const state = {
+    code,
+    status: 'waiting',
+    board: Array(9).fill(null),
+    turn: 'p1',
+    winner: null,
+    p2Joined: false
+  };
+  await tttSaveState(state);
+  await tttRememberSession(code, 'p1');
+  document.getElementById('tttCodeShown').textContent = code;
+  tttShowPane('tttWaitingOpponent');
+  tttStartPolling();
+}
+
+async function tttJoinRoom(){
+  const input = document.getElementById('tttJoinInput');
+  const code = input.value.trim().toUpperCase();
+  const errorEl = document.getElementById('tttLobbyError');
+  if(!code){ errorEl.textContent = 'Entre un code.'; return; }
+  const state = await tttLoadState(code);
+  if(!state){ errorEl.textContent = "Ce code n'existe pas."; return; }
+  ttt.role = 'p2';
+  ttt.code = code;
+  state.p2Joined = true;
+  state.status = 'playing';
+  await tttSaveState(state);
+  await tttRememberSession(code, 'p2');
+  tttRenderGame(state);
+  tttStartPolling();
+}
+
+function tttStartPolling(){
+  tttStopPolling();
+  ttt.pollTimer = setInterval(tttPoll, 2500);
+}
+function tttStopPolling(){
+  if(ttt.pollTimer){ clearInterval(ttt.pollTimer); ttt.pollTimer = null; }
+}
+
+async function tttPoll(){
+  if(!ttt.code || !ttt.role) return;
+  const state = await tttLoadState(ttt.code);
+  if(!state) return;
+  if(state.status === 'over'){ tttRenderResult(state); return; }
+  if(state.status === 'playing'){ tttRenderGame(state); return; }
+}
+
+function tttMarkHtml(role){
+  const photo = role === 'p1' ? TTT_PHOTO_P1 : TTT_PHOTO_P2;
+  const fallback = role === 'p1' ? TTT_PHOTO_P1_FALLBACK : TTT_PHOTO_P2_FALLBACK;
+  return photo
+    ? `<img src="${photo}" alt="">`
+    : `<div class="ttt-mark">${fallback}</div>`;
+}
+
+function tttRenderGame(state){
+  tttShowPane('tttGame');
+  const turnEl = document.getElementById('tttTurnIndicator');
+  turnEl.textContent = state.turn === ttt.role ? '🎯 À toi de jouer !' : "⏳ Tour de ton/ta partenaire…";
+
+  const board = document.getElementById('tttBoard');
+  board.innerHTML = '';
+  state.board.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'ttt-cell' + (val || state.turn !== ttt.role ? ' disabled' : '');
+    if(val){ cell.innerHTML = tttMarkHtml(val); }
+    else if(state.turn === ttt.role){ cell.onclick = () => tttPlay(i); }
+    board.appendChild(cell);
+  });
+}
+
+function tttCheckWinner(board){
+  for(const line of TTT_WIN_LINES){
+    const [a,b,c] = line;
+    if(board[a] && board[a] === board[b] && board[a] === board[c]) return { winner: board[a], line };
+  }
+  if(board.every(c => c)) return { winner: 'draw', line: null };
+  return null;
+}
+
+async function tttPlay(index){
+  const state = await tttLoadState(ttt.code);
+  if(!state || state.turn !== ttt.role || state.status !== 'playing' || state.board[index]) return;
+  state.board[index] = ttt.role;
+  const result = tttCheckWinner(state.board);
+  if(result){
+    state.status = 'over';
+    state.winner = result.winner;
+    state.winLine = result.line;
+  } else {
+    state.turn = ttt.role === 'p1' ? 'p2' : 'p1';
+  }
+  await tttSaveState(state);
+  if(state.status === 'over'){ tttRenderResult(state); } else { tttRenderGame(state); }
+}
+
+function tttRenderResult(state){
+  tttStopPolling();
+  tttShowPane('tttResult');
+  const board = document.getElementById('tttBoard');
+  const text = document.getElementById('tttResultText');
+  if(state.winner === 'draw'){
+    text.textContent = "🤝 Match nul !";
+  } else if(state.winner === ttt.role){
+    text.textContent = '🎉 Tu as gagné !';
+  } else {
+    text.textContent = '💫 Ton/ta partenaire a gagné cette fois !';
+  }
+  if(state.winner === ttt.role && !state.pointsAwarded && myIdentity){
+    state.pointsAwarded = true;
+    awardPoints(myIdentity, 50);
+    tttSaveState(state);
+  }
+}
+
+async function tttReset(){
+  try{ await window.storage.delete('ttt_my_session', false); }catch(e){}
+  ttt = { role:null, code:null, pollTimer:null };
+  tttStopPolling();
+  document.getElementById('tttJoinInput').value = '';
+  tttShowPane('tttLobby');
+}
+
+/* ============================================================
+   GEOSOUVENIRS — retrouver nos lieux sur la carte
+   ============================================================ */
+
+let geo = {
+  index: 0,
+  score: 0,
+  map: null,
+  guessMarker: null,
+  actualMarker: null,
+  line: null,
+  guessLatLng: null,
+  roundLocked: false
+};
+
+function geoHaversineMeters(lat1, lng1, lat2, lng2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function geoInit(){
+  geo.index = 0;
+  geo.score = 0;
+  document.getElementById('geoRoundBody').style.display = 'block';
+  document.getElementById('geoFinal').style.display = 'none';
+  geoStartRound();
+}
+
+function geoStartRound(){
+  geo.guessMarker = null;
+  geo.actualMarker = null;
+  geo.line = null;
+  geo.guessLatLng = null;
+  geo.roundLocked = false;
+
+  document.getElementById('geoRoundResult').style.display = 'none';
+  document.getElementById('geoNextBtn').style.display = 'none';
+  document.getElementById('geoValidateBtn').style.display = 'inline-block';
+  document.getElementById('geoValidateBtn').disabled = true;
+
+  const loc = GEO_LOCATIONS[geo.index];
+  document.getElementById('geoRoundCount').textContent = `Lieu ${geo.index+1} / ${GEO_LOCATIONS.length}`;
+  document.getElementById('geoScoreTotal').textContent = `Score : ${geo.score}`;
+  document.getElementById('geoClue').textContent = loc.clue;
+
+  if(!geo.map){
+    geo.map = L.map('geoMap').setView([GEO_DEFAULT_VIEW.lat, GEO_DEFAULT_VIEW.lng], GEO_DEFAULT_VIEW.zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(geo.map);
+    geo.map.on('click', geoOnMapClick);
+  } else {
+    geo.map.setView([GEO_DEFAULT_VIEW.lat, GEO_DEFAULT_VIEW.lng], GEO_DEFAULT_VIEW.zoom);
+  }
+  setTimeout(() => geo.map.invalidateSize(), 50);
+}
+
+function geoOnMapClick(e){
+  if(geo.roundLocked) return;
+  geo.guessLatLng = e.latlng;
+  if(geo.guessMarker){
+    geo.guessMarker.setLatLng(e.latlng);
+  } else {
+    geo.guessMarker = L.marker(e.latlng).addTo(geo.map);
+  }
+  document.getElementById('geoValidateBtn').disabled = false;
+}
+
+function geoValidateGuess(){
+  if(!geo.guessLatLng || geo.roundLocked) return;
+  geo.roundLocked = true;
+  const loc = GEO_LOCATIONS[geo.index];
+  const distance = geoHaversineMeters(geo.guessLatLng.lat, geo.guessLatLng.lng, loc.lat, loc.lng);
+  const points = Math.max(0, Math.round(1000 * Math.exp(-distance / 300)));
+  geo.score += points;
+
+  geo.actualMarker = L.marker([loc.lat, loc.lng], {
+    icon: L.divIcon({ className: '', html: '<div style="font-size:26px;">📍</div>', iconSize:[26,26], iconAnchor:[13,26] })
+  }).addTo(geo.map);
+  geo.line = L.polyline([geo.guessLatLng, [loc.lat, loc.lng]], { color:'#FF3E7F', dashArray:'6,6' }).addTo(geo.map);
+  geo.map.fitBounds(geo.line.getBounds(), { padding:[40,40] });
+
+  const distText = distance < 1000 ? `${Math.round(distance)} m` : `${(distance/1000).toFixed(2)} km`;
+  const resultEl = document.getElementById('geoRoundResult');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div class="geo-distance">📏 ${distText} de l'endroit exact</div>
+    <div class="geo-points">+${points} points</div>
+  `;
+  document.getElementById('geoScoreTotal').textContent = `Score : ${geo.score}`;
+  document.getElementById('geoValidateBtn').style.display = 'none';
+  document.getElementById('geoNextBtn').style.display = 'inline-block';
+  document.getElementById('geoNextBtn').textContent =
+    geo.index === GEO_LOCATIONS.length - 1 ? 'Voir le score final' : 'Lieu suivant';
+}
+
+function geoNextRound(){
+  geo.index++;
+  if(geo.index >= GEO_LOCATIONS.length){
+    document.getElementById('geoRoundBody').style.display = 'none';
+    document.getElementById('geoFinal').style.display = 'block';
+    document.getElementById('geoFinalScore').textContent = `${geo.score} / ${GEO_LOCATIONS.length * 1000}`;
+    if(myIdentity) awardPoints(myIdentity, Math.round(geo.score / 10));
+    return;
+  }
+  if(geo.guessMarker){ geo.map.removeLayer(geo.guessMarker); }
+  if(geo.actualMarker){ geo.map.removeLayer(geo.actualMarker); }
+  if(geo.line){ geo.map.removeLayer(geo.line); }
+  geoStartRound();
+}
+
+function geoReset(){
+  geoInit();
+}
+
+/* ============================================================
+   IDENTITÉ, CLASSEMENT & OOTD
+   ============================================================ */
+
+let myIdentity = null; // 'name1' ou 'name2'
+
+async function loadMyIdentity(){
+  try{
+    const res = await window.storage.get('my_identity', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+async function setIdentity(id){
+  myIdentity = id;
+  try{ await window.storage.set('my_identity', JSON.stringify(id), false); }catch(e){}
+  renderWhoAmI();
+}
+
+function renderWhoAmI(){
+  const btn1 = document.getElementById('whoBtn1');
+  const btn2 = document.getElementById('whoBtn2');
+  btn1.textContent = COUPLE.name1;
+  btn2.textContent = COUPLE.name2;
+  btn1.classList.toggle('active', myIdentity === 'name1');
+  btn2.classList.toggle('active', myIdentity === 'name2');
+}
+
+const LEADERBOARD_KEY = 'leaderboard';
+async function loadLeaderboard(){
+  try{
+    const res = await window.storage.get(LEADERBOARD_KEY, true);
+    return res ? JSON.parse(res.value) : { name1:0, name2:0 };
+  }catch(e){ return { name1:0, name2:0 }; }
+}
+async function saveLeaderboard(lb){
+  try{ await window.storage.set(LEADERBOARD_KEY, JSON.stringify(lb), true); }catch(e){}
+}
+async function awardPoints(identity, points){
+  if(!identity || !points) return;
+  const lb = await loadLeaderboard();
+  lb[identity] = (lb[identity] || 0) + points;
+  await saveLeaderboard(lb);
+}
+
+const OOTD_KEY = 'ootd_log';
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+async function loadOotdLog(){
+  try{
+    const res = await window.storage.get(OOTD_KEY, true);
+    return res ? JSON.parse(res.value) : {};
+  }catch(e){ return {}; }
+}
+async function saveOotdLog(log){
+  try{ await window.storage.set(OOTD_KEY, JSON.stringify(log), true); }catch(e){}
+}
+
+async function ootdCheckIn(){
+  if(!myIdentity){ alert('Choisis qui tu es en haut du menu avant de valider ton OOTD.'); return; }
+  const log = await loadOotdLog();
+  const today = todayStr();
+  if(!log[today]) log[today] = {};
+  if(log[today][myIdentity]) return; // déjà fait aujourd'hui
+  log[today][myIdentity] = true;
+  await saveOotdLog(log);
+  await awardPoints(myIdentity, 50);
+  renderLeaderboardScreen();
+}
+
+async function renderLeaderboardScreen(){
+  document.getElementById('lbName1').textContent = COUPLE.name1;
+  document.getElementById('lbName2').textContent = COUPLE.name2;
+  document.getElementById('ootdName1').textContent = COUPLE.name1;
+  document.getElementById('ootdName2').textContent = COUPLE.name2;
+
+  const lb = await loadLeaderboard();
+  document.getElementById('lbScore1').textContent = `${lb.name1 || 0} pts`;
+  document.getElementById('lbScore2').textContent = `${lb.name2 || 0} pts`;
+
+  const log = await loadOotdLog();
+  const today = log[todayStr()] || {};
+  document.getElementById('ootdCheck1').textContent = today.name1 ? '✅' : '❌';
+  document.getElementById('ootdCheck2').textContent = today.name2 ? '✅' : '❌';
+
+  const btn = document.getElementById('ootdBtn');
+  if(myIdentity && today[myIdentity]){
+    btn.textContent = 'OOTD déjà validé aujourd\'hui ✅';
+    btn.disabled = true;
+  } else {
+    btn.textContent = "J'ai posté mon OOTD aujourd'hui (+50)";
+    btn.disabled = false;
+  }
+}
+
+(async function initIdentity(){
+  myIdentity = await loadMyIdentity();
+  renderWhoAmI();
+})();
+</script>
+</body>
+</html>

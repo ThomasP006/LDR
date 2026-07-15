@@ -458,6 +458,53 @@
   .loto-num:hover{ border-color:var(--pink); }
   .loto-num.used{ background:#12082A; color:#4a4166; cursor:default; text-decoration:line-through; }
   .loto-num.disabled{ cursor:default; opacity:.6; }
+
+  /* ---------- PUISSANCE 4 ---------- */
+  .c4-arrows{
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;
+    max-width:420px; margin:14px auto 6px;
+  }
+  .c4-arrows button{
+    background:#1B0E38; border:1px solid rgba(255,255,255,.15); color:var(--yellow);
+    border-radius:8px; padding:6px 0; cursor:pointer; font-size:.9rem;
+  }
+  .c4-arrows button:hover{ border-color:var(--yellow); }
+  .c4-arrows button:disabled{ opacity:.3; cursor:default; }
+  .c4-board{
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;
+    max-width:420px; margin:0 auto; background:#12082A; padding:8px; border-radius:14px;
+  }
+  .c4-cell{
+    aspect-ratio:1/1; border-radius:50%; background:#1B0E38; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .c4-cell img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .c4-cell .c4-mark{ font-size:1.3rem; }
+  .c4-cell.win{ box-shadow:0 0 0 3px var(--yellow) inset; }
+
+  /* ---------- MASTERMIND ---------- */
+  .mind-digit-row{
+    display:flex; justify-content:center; gap:10px; margin:16px 0;
+  }
+  .mind-digit{
+    width:48px; height:56px; text-align:center; font-size:1.4rem;
+    font-family:'Space Mono',monospace; border-radius:10px;
+    border:2px solid rgba(255,255,255,.15); background:#12082A; color:var(--white);
+  }
+  .mind-digit:focus{ border-color:var(--purple); outline:none; }
+  .mind-history-row{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:20px;
+  }
+  @media (max-width:600px){ .mind-history-row{ grid-template-columns:1fr; } }
+  .mind-history{
+    display:flex; flex-direction:column; gap:6px; margin-top:8px;
+  }
+  .mind-history-item{
+    background:#1B0E38; border:1px solid rgba(255,255,255,.1); border-radius:10px;
+    padding:8px 12px; font-family:'Space Mono',monospace; font-size:.85rem;
+    display:flex; justify-content:space-between;
+  }
+  .mind-history-item b{ color:var(--yellow); }
 </style>
 </head>
 <body>
@@ -531,6 +578,16 @@
       <div class="cabinet" style="--accent:#42D6A4" tabindex="0" onclick="showScreen('loto')">
         <span class="emoji">🔢</span>
         <h3>Course à 100</h3>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#FFD23F" tabindex="0" onclick="showScreen('c4')">
+        <span class="emoji">🔴</span>
+        <h3>Puissance 4</h3>
+        <span class="coin">JOUER</span>
+      </div>
+      <div class="cabinet" style="--accent:#9B5DE5" tabindex="0" onclick="showScreen('mind')">
+        <span class="emoji">🔐</span>
+        <h3>Mastermind</h3>
         <span class="coin">JOUER</span>
       </div>
     </div>
@@ -706,6 +763,8 @@
       <li>📸 Morpion gagné — <b>50 pts</b></li>
       <li>🧠 Memory — <b>20 à 90 pts</b> selon le nombre de coups</li>
       <li>🗺️ GeoSouvenirs — jusqu'à <b>100 pts</b> par lieu selon la précision</li>
+      <li>🔴 Puissance 4 gagné — <b>60 pts</b></li>
+      <li>🔐 Mastermind gagné — <b>70 pts</b></li>
       <li>👗 OOTD posté — <b>50 pts</b>/jour</li>
     </ul>
 
@@ -785,6 +844,120 @@
       <div class="quiz-result">
         <div id="lotoResultText" class="bship-result-text"></div>
         <button class="replay-btn" onclick="lotoReset()">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PUISSANCE 4 -->
+  <div id="c4" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🔴 Puissance 4</h2>
+    <p class="bship-hint">Avec vos photos comme pièces. Crée ou rejoins une partie avec un code.</p>
+
+    <div id="c4Lobby">
+      <div class="bship-lobby-grid">
+        <div class="bship-lobby-card">
+          <h3>Créer une partie</h3>
+          <p>Génère un code à partager</p>
+          <button class="replay-btn" onclick="c4CreateRoom()">Créer</button>
+        </div>
+        <div class="bship-lobby-card">
+          <h3>Rejoindre une partie</h3>
+          <input id="c4JoinInput" class="bship-input" placeholder="CODE" maxlength="5">
+          <button class="replay-btn" onclick="c4JoinRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <p id="c4LobbyError" class="bship-error"></p>
+    </div>
+
+    <div id="c4WaitingOpponent" style="display:none">
+      <div class="bship-code-display">Code de la partie : <span id="c4CodeShown"></span></div>
+      <p class="bship-hint">En attente que ton/ta partenaire rejoigne avec ce code…</p>
+    </div>
+
+    <div id="c4Game" style="display:none">
+      <p id="c4TurnIndicator" class="bship-turn"></p>
+      <div class="c4-arrows" id="c4Arrows"></div>
+      <div class="c4-board" id="c4Board"></div>
+    </div>
+
+    <div id="c4Result" style="display:none">
+      <div class="quiz-result">
+        <div id="c4ResultText" class="bship-result-text"></div>
+        <button class="replay-btn" onclick="c4Reset()">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTERMIND -->
+  <div id="mind" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🔐 Mastermind</h2>
+    <p class="bship-hint">Chacun choisit un code secret à 4 chiffres (0-9). Devinez le code de l'autre : on vous dit juste combien de chiffres sont bons, pas lesquels !</p>
+
+    <div id="mindLobby">
+      <div class="bship-lobby-grid">
+        <div class="bship-lobby-card">
+          <h3>Créer une partie</h3>
+          <p>Génère un code à partager</p>
+          <button class="replay-btn" onclick="mindCreateRoom()">Créer</button>
+        </div>
+        <div class="bship-lobby-card">
+          <h3>Rejoindre une partie</h3>
+          <input id="mindJoinInput" class="bship-input" placeholder="CODE" maxlength="5">
+          <button class="replay-btn" onclick="mindJoinRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <p id="mindLobbyError" class="bship-error"></p>
+    </div>
+
+    <div id="mindWaitingOpponent" style="display:none">
+      <div class="bship-code-display">Code de la partie : <span id="mindCodeShown"></span></div>
+      <p class="bship-hint">En attente que ton/ta partenaire rejoigne avec ce code…</p>
+    </div>
+
+    <div id="mindSetSecret" style="display:none">
+      <p class="bship-hint">Choisis ton code secret à 4 chiffres (celui que l'autre devra deviner) :</p>
+      <div class="mind-digit-row" id="mindSecretInputs">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+      </div>
+      <button class="replay-btn" onclick="mindConfirmSecret()">Valider mon code</button>
+      <p id="mindSetError" class="bship-error"></p>
+    </div>
+
+    <div id="mindWaitingReady" style="display:none">
+      <p class="bship-hint">Code enregistré ! En attente que ton/ta partenaire choisisse le sien…</p>
+    </div>
+
+    <div id="mindGame" style="display:none">
+      <p id="mindTurnIndicator" class="bship-turn"></p>
+      <div class="mind-digit-row" id="mindGuessInputs">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+        <input type="text" inputmode="numeric" maxlength="1" class="mind-digit">
+      </div>
+      <button id="mindGuessBtn" class="replay-btn" onclick="mindSubmitGuess()">Deviner</button>
+
+      <div class="mind-history-row">
+        <div>
+          <div class="loto-support-label" id="mindMyHistLabel">Mes tentatives</div>
+          <div class="mind-history" id="mindMyHistory"></div>
+        </div>
+        <div>
+          <div class="loto-support-label" id="mindOppHistLabel">Ses tentatives</div>
+          <div class="mind-history" id="mindOppHistory"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mindResult" style="display:none">
+      <div class="quiz-result">
+        <div id="mindResultText" class="bship-result-text"></div>
+        <button class="replay-btn" onclick="mindReset()">Nouvelle partie</button>
       </div>
     </div>
   </div>
@@ -895,11 +1068,15 @@ const TIMELINE_EVENTS = [
   { date: "15 septembre 2025", text: "Notre premier baiser devant la Tour Eiffel — on se met ensemble 💜" }
 ];
 
-// Chaque paire = un emoji (facile à remplacer par une vraie photo, voir plus bas)
-const MEMORY_PAIRS = ['<img src="https://i.imgur.com/5sXLW2B.jpeg">', '<img src="https://i.imgur.com/rjSB3B5.jpeg ">', '<img src="https://i.imgur.com/bHMmW5K.jpeg">', '<img src="https://i.imgur.com/JUvjt5O.jpeg ">', '<img src="https://i.imgur.com/hNq3ptK.jpeg ">', '<img src="https://i.imgur.com/xVxqksk.jpeg">'];
-// Pour utiliser de vraies photos plus tard, remplace un emoji par :
-// '<img src="photo1.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
-// et adapte le CSS .mem-card si besoin.
+// Chaque paire = une photo (garde le même style d'écriture pour en ajouter/retirer)
+const MEMORY_PAIRS = [
+  '<img src="https://i.imgur.com/5sXLW2B.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">',
+  '<img src="https://i.imgur.com/rjSB3B5.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">',
+  '<img src="https://i.imgur.com/bHMmW5K.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">',
+  '<img src="https://i.imgur.com/JUvjt5O.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">',
+  '<img src="https://i.imgur.com/hNq3ptK.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">',
+  '<img src="https://i.imgur.com/xVxqksk.jpeg" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
+];
 
 // Photos utilisées comme pions dans le Morpion (à la place des croix/ronds).
 // Laisse "" pour l'instant, un emoji de secours s'affichera. Mets l'URL de vos
@@ -953,6 +1130,8 @@ function showScreen(id){
   if(id === 'geo') geoInit();
   if(id === 'leaderboard') renderLeaderboardScreen();
   if(id === 'loto') lotoInit(); else lotoStopPolling();
+  if(id === 'c4') c4Init(); else c4StopPolling();
+  if(id === 'mind') mindInit(); else mindStopPolling();
 }
 
 /* ---------- TIMELINE ---------- */
@@ -1035,7 +1214,7 @@ function flipCard(i, el){
 
   el.classList.remove('hidden-face');
   el.classList.add('flipped');
-  el.textContent = memState.deck[i].value;
+  el.innerHTML = memState.deck[i].value;
 
   if(memState.first === null){
     memState.first = i;
@@ -2178,6 +2357,479 @@ async function lotoReset(){
   loto = { role:null, code:null, pollTimer:null, fillTimer:null, tickCount:0 };
   document.getElementById('lotoJoinInput').value = '';
   lotoShowPane('lotoLobby');
+}
+
+/* ============================================================
+   PUISSANCE 4 — avec vos photos comme pièces
+   ============================================================ */
+
+const C4_COLS = 7;
+const C4_ROWS = 6;
+
+let c4 = { role:null, code:null, pollTimer:null };
+
+function c4Key(code){ return 'c4_room:' + code; }
+
+async function c4SaveState(state){
+  state.updatedAt = Date.now();
+  await window.storage.set(c4Key(c4.code), JSON.stringify(state), true);
+  return state;
+}
+async function c4LoadState(code){
+  try{
+    const res = await window.storage.get(c4Key(code), true);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function c4RememberSession(code, role){
+  try{ await window.storage.set('c4_my_session', JSON.stringify({code, role}), false); }catch(e){}
+}
+async function c4GetRememberedSession(){
+  try{
+    const res = await window.storage.get('c4_my_session', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+function c4ShowPane(id){
+  ['c4Lobby','c4WaitingOpponent','c4Game','c4Result']
+    .forEach(p => document.getElementById(p).style.display = (p === id) ? 'block' : 'none');
+}
+
+function c4RandomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+async function c4Init(){
+  document.getElementById('c4LobbyError').textContent = '';
+  const remembered = await c4GetRememberedSession();
+  if(remembered && remembered.code){
+    const state = await c4LoadState(remembered.code);
+    if(state){
+      c4.role = remembered.role;
+      c4.code = remembered.code;
+      if(state.status === 'over'){ c4RenderResult(state); }
+      else if(state.status === 'playing'){ c4RenderGame(state); }
+      else { document.getElementById('c4CodeShown').textContent = c4.code; c4ShowPane('c4WaitingOpponent'); }
+      c4StartPolling();
+      return;
+    }
+  }
+  c4ShowPane('c4Lobby');
+}
+
+async function c4CreateRoom(){
+  const code = c4RandomCode();
+  c4.role = 'p1';
+  c4.code = code;
+  const state = {
+    code,
+    status: 'waiting',
+    p2Joined: false,
+    board: Array(C4_COLS * C4_ROWS).fill(null),
+    turn: 'p1',
+    winner: null,
+    winLine: null,
+    pointsAwarded: false
+  };
+  await c4SaveState(state);
+  await c4RememberSession(code, 'p1');
+  document.getElementById('c4CodeShown').textContent = code;
+  c4ShowPane('c4WaitingOpponent');
+  c4StartPolling();
+}
+
+async function c4JoinRoom(){
+  const input = document.getElementById('c4JoinInput');
+  const code = input.value.trim().toUpperCase();
+  const errorEl = document.getElementById('c4LobbyError');
+  if(!code){ errorEl.textContent = 'Entre un code.'; return; }
+  const state = await c4LoadState(code);
+  if(!state){ errorEl.textContent = "Ce code n'existe pas."; return; }
+  c4.role = 'p2';
+  c4.code = code;
+  state.p2Joined = true;
+  state.status = 'playing';
+  await c4SaveState(state);
+  await c4RememberSession(code, 'p2');
+  c4RenderGame(state);
+  c4StartPolling();
+}
+
+function c4StartPolling(){
+  c4StopPolling();
+  c4.pollTimer = setInterval(c4Poll, 2000);
+}
+function c4StopPolling(){
+  if(c4.pollTimer){ clearInterval(c4.pollTimer); c4.pollTimer = null; }
+}
+
+async function c4Poll(){
+  if(!c4.code || !c4.role) return;
+  const state = await c4LoadState(c4.code);
+  if(!state) return;
+  if(state.status === 'over'){ c4RenderResult(state); return; }
+  if(state.status === 'playing'){ c4RenderGame(state); return; }
+}
+
+function c4MarkHtml(role){
+  const photo = role === 'p1' ? TTT_PHOTO_P1 : TTT_PHOTO_P2;
+  const fallback = role === 'p1' ? TTT_PHOTO_P1_FALLBACK : TTT_PHOTO_P2_FALLBACK;
+  return photo ? `<img src="${photo}" alt="">` : `<span class="c4-mark">${fallback}</span>`;
+}
+
+function c4RenderGame(state){
+  c4ShowPane('c4Game');
+  const turnEl = document.getElementById('c4TurnIndicator');
+  turnEl.textContent = state.turn === c4.role ? '🎯 À toi de jouer !' : "⏳ Tour de ton/ta partenaire…";
+
+  const arrowsEl = document.getElementById('c4Arrows');
+  arrowsEl.innerHTML = '';
+  for(let col = 0; col < C4_COLS; col++){
+    const btn = document.createElement('button');
+    btn.textContent = '⬇';
+    const colFull = state.board[col] !== null; // top cell of column
+    btn.disabled = state.turn !== c4.role || colFull || state.status !== 'playing';
+    btn.onclick = () => c4Drop(col);
+    arrowsEl.appendChild(btn);
+  }
+
+  const boardEl = document.getElementById('c4Board');
+  boardEl.innerHTML = '';
+  for(let i = 0; i < state.board.length; i++){
+    const cell = document.createElement('div');
+    cell.className = 'c4-cell' + (state.winLine && state.winLine.includes(i) ? ' win' : '');
+    if(state.board[i]){ cell.innerHTML = c4MarkHtml(state.board[i]); }
+    boardEl.appendChild(cell);
+  }
+}
+
+function c4DropRowFor(board, col){
+  for(let row = C4_ROWS - 1; row >= 0; row--){
+    const idx = row * C4_COLS + col;
+    if(!board[idx]) return idx;
+  }
+  return -1;
+}
+
+function c4CheckWinner(board){
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for(let row = 0; row < C4_ROWS; row++){
+    for(let col = 0; col < C4_COLS; col++){
+      const idx = row * C4_COLS + col;
+      const val = board[idx];
+      if(!val) continue;
+      for(const [dr, dc] of dirs){
+        const line = [idx];
+        let r = row, c = col, ok = true;
+        for(let k = 1; k < 4; k++){
+          r += dr; c += dc;
+          if(r < 0 || r >= C4_ROWS || c < 0 || c >= C4_COLS){ ok = false; break; }
+          const nIdx = r * C4_COLS + c;
+          if(board[nIdx] !== val){ ok = false; break; }
+          line.push(nIdx);
+        }
+        if(ok) return { winner: val, line };
+      }
+    }
+  }
+  if(board.every(c => c)) return { winner: 'draw', line: null };
+  return null;
+}
+
+async function c4Drop(col){
+  const state = await c4LoadState(c4.code);
+  if(!state || state.turn !== c4.role || state.status !== 'playing') return;
+  const idx = c4DropRowFor(state.board, col);
+  if(idx === -1) return;
+  state.board[idx] = c4.role;
+  const result = c4CheckWinner(state.board);
+  if(result){
+    state.status = 'over';
+    state.winner = result.winner;
+    state.winLine = result.line;
+  } else {
+    state.turn = c4.role === 'p1' ? 'p2' : 'p1';
+  }
+  await c4SaveState(state);
+  if(state.status === 'over'){ c4RenderResult(state); } else { c4RenderGame(state); }
+}
+
+function c4RenderResult(state){
+  c4StopPolling();
+  c4ShowPane('c4Result');
+  const text = document.getElementById('c4ResultText');
+  if(state.winner === 'draw'){
+    text.textContent = "🤝 Match nul, grille pleine !";
+  } else if(state.winner === c4.role){
+    text.textContent = '🎉 Tu as aligné 4 pièces, tu as gagné !';
+  } else {
+    text.textContent = '💫 Ton/ta partenaire a gagné cette fois !';
+  }
+  if(state.winner === c4.role && !state.pointsAwarded && myIdentity){
+    state.pointsAwarded = true;
+    awardPoints(myIdentity, 60);
+    c4SaveState(state);
+  }
+}
+
+async function c4Reset(){
+  try{ await window.storage.delete('c4_my_session', false); }catch(e){}
+  c4StopPolling();
+  c4 = { role:null, code:null, pollTimer:null };
+  document.getElementById('c4JoinInput').value = '';
+  c4ShowPane('c4Lobby');
+}
+
+/* ============================================================
+   MASTERMIND — devine le code à 4 chiffres de l'autre
+   ============================================================ */
+
+let mind = { role:null, code:null, pollTimer:null };
+
+function mindKey(code){ return 'mind_room:' + code; }
+
+async function mindSaveState(state){
+  state.updatedAt = Date.now();
+  await window.storage.set(mindKey(mind.code), JSON.stringify(state), true);
+  return state;
+}
+async function mindLoadState(code){
+  try{
+    const res = await window.storage.get(mindKey(code), true);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function mindRememberSession(code, role){
+  try{ await window.storage.set('mind_my_session', JSON.stringify({code, role}), false); }catch(e){}
+}
+async function mindGetRememberedSession(){
+  try{
+    const res = await window.storage.get('mind_my_session', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+function mindShowPane(id){
+  ['mindLobby','mindWaitingOpponent','mindSetSecret','mindWaitingReady','mindGame','mindResult']
+    .forEach(p => document.getElementById(p).style.display = (p === id) ? 'block' : 'none');
+}
+
+function mindRandomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+function mindSetupDigitInputs(containerId){
+  const inputs = document.querySelectorAll(`#${containerId} .mind-digit`);
+  inputs.forEach((inp, i) => {
+    inp.value = '';
+    inp.oninput = () => {
+      inp.value = inp.value.replace(/[^0-9]/g, '').slice(0,1);
+      if(inp.value && inputs[i+1]) inputs[i+1].focus();
+    };
+  });
+}
+
+function mindReadDigits(containerId){
+  const inputs = document.querySelectorAll(`#${containerId} .mind-digit`);
+  const digits = Array.from(inputs).map(i => i.value);
+  if(digits.some(d => d === '')) return null;
+  return digits.map(d => parseInt(d, 10));
+}
+
+async function mindInit(){
+  document.getElementById('mindLobbyError').textContent = '';
+  const remembered = await mindGetRememberedSession();
+  if(remembered && remembered.code){
+    const state = await mindLoadState(remembered.code);
+    if(state){
+      mind.role = remembered.role;
+      mind.code = remembered.code;
+      mindResumeFromState(state);
+      return;
+    }
+  }
+  mindShowPane('mindLobby');
+}
+
+function mindResumeFromState(state){
+  const me = state[mind.role];
+  if(!me){ mindShowPane('mindLobby'); return; }
+  if(state.status === 'over'){
+    mindRenderResult(state);
+  } else if(me.secret && state.status === 'playing'){
+    mindRenderGame(state);
+  } else if(me.secret){
+    mindShowPane('mindWaitingReady');
+  } else {
+    mindSetupDigitInputs('mindSecretInputs');
+    mindShowPane('mindSetSecret');
+  }
+  mindStartPolling();
+}
+
+async function mindCreateRoom(){
+  const code = mindRandomCode();
+  mind.role = 'p1';
+  mind.code = code;
+  const state = {
+    code,
+    status: 'setting',
+    p2Joined: false,
+    p1: { secret:null, guesses:[] },
+    p2: { secret:null, guesses:[] },
+    turn: 'p1',
+    winner: null,
+    pointsAwarded: false
+  };
+  await mindSaveState(state);
+  await mindRememberSession(code, 'p1');
+  document.getElementById('mindCodeShown').textContent = code;
+  mindShowPane('mindWaitingOpponent');
+  mindStartPolling();
+}
+
+async function mindJoinRoom(){
+  const input = document.getElementById('mindJoinInput');
+  const code = input.value.trim().toUpperCase();
+  const errorEl = document.getElementById('mindLobbyError');
+  if(!code){ errorEl.textContent = 'Entre un code.'; return; }
+  const state = await mindLoadState(code);
+  if(!state){ errorEl.textContent = "Ce code n'existe pas."; return; }
+  mind.role = 'p2';
+  mind.code = code;
+  state.p2Joined = true;
+  await mindSaveState(state);
+  await mindRememberSession(code, 'p2');
+  mindSetupDigitInputs('mindSecretInputs');
+  mindShowPane('mindSetSecret');
+  mindStartPolling();
+}
+
+async function mindConfirmSecret(){
+  const digits = mindReadDigits('mindSecretInputs');
+  const errorEl = document.getElementById('mindSetError');
+  if(!digits){ errorEl.textContent = 'Remplis les 4 chiffres.'; return; }
+  errorEl.textContent = '';
+  const state = await mindLoadState(mind.code);
+  if(!state) return;
+  state[mind.role].secret = digits;
+  if(state.p1.secret && state.p2.secret && state.status !== 'playing'){
+    state.status = 'playing';
+  }
+  await mindSaveState(state);
+  if(state.status === 'playing'){
+    mindRenderGame(state);
+  } else {
+    mindShowPane('mindWaitingReady');
+  }
+}
+
+function mindStartPolling(){
+  mindStopPolling();
+  mind.pollTimer = setInterval(mindPoll, 2000);
+}
+function mindStopPolling(){
+  if(mind.pollTimer){ clearInterval(mind.pollTimer); mind.pollTimer = null; }
+}
+
+async function mindPoll(){
+  if(!mind.code || !mind.role) return;
+  const state = await mindLoadState(mind.code);
+  if(!state) return;
+  if(state.status === 'over'){ mindRenderResult(state); return; }
+  if(state.status === 'playing'){ mindRenderGame(state); return; }
+  const me = state[mind.role];
+  if(me && me.secret){
+    mindShowPane('mindWaitingReady');
+  }
+}
+
+function mindRenderHistory(containerId, guesses){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  if(guesses.length === 0){
+    el.innerHTML = '<div class="mind-history-item">Aucune tentative pour l\'instant</div>';
+    return;
+  }
+  guesses.slice().reverse().forEach(g => {
+    const div = document.createElement('div');
+    div.className = 'mind-history-item';
+    div.innerHTML = `<span>${g.guess.join(' ')}</span><b>${g.hits} bon${g.hits > 1 ? 's' : ''}</b>`;
+    el.appendChild(div);
+  });
+}
+
+function mindRenderGame(state){
+  mindShowPane('mindGame');
+  const me = mind.role;
+  const opp = me === 'p1' ? 'p2' : 'p1';
+  const isMyTurn = state.turn === me;
+
+  document.getElementById('mindTurnIndicator').textContent =
+    isMyTurn ? "🎯 À toi de deviner son code !" : "⏳ Tour de ton/ta partenaire…";
+  document.getElementById('mindMyHistLabel').textContent =
+    `Mes tentatives (${COUPLE[opp === 'p1' ? 'name1' : 'name2']})`;
+  document.getElementById('mindOppHistLabel').textContent =
+    `Ses tentatives (${COUPLE[me === 'p1' ? 'name1' : 'name2']})`;
+
+  mindRenderHistory('mindMyHistory', state[me].guesses);
+  mindRenderHistory('mindOppHistory', state[opp].guesses);
+
+  const guessBtn = document.getElementById('mindGuessBtn');
+  guessBtn.style.display = isMyTurn ? 'inline-block' : 'none';
+  if(isMyTurn){ mindSetupDigitInputs('mindGuessInputs'); }
+}
+
+async function mindSubmitGuess(){
+  const digits = mindReadDigits('mindGuessInputs');
+  if(!digits) return;
+  const state = await mindLoadState(mind.code);
+  if(!state || state.turn !== mind.role || state.status !== 'playing') return;
+  const me = mind.role;
+  const opp = me === 'p1' ? 'p2' : 'p1';
+  const secret = state[opp].secret;
+
+  let hits = 0;
+  for(let i = 0; i < 4; i++){ if(digits[i] === secret[i]) hits++; }
+  state[me].guesses.push({ guess: digits, hits });
+
+  if(hits === 4){
+    state.status = 'over';
+    state.winner = me;
+  } else {
+    state.turn = opp;
+  }
+  await mindSaveState(state);
+  if(state.status === 'over'){ mindRenderResult(state); } else { mindRenderGame(state); }
+}
+
+function mindRenderResult(state){
+  mindStopPolling();
+  mindShowPane('mindResult');
+  const won = state.winner === mind.role;
+  document.getElementById('mindResultText').textContent = won
+    ? '🎉 Tu as trouvé son code secret, tu as gagné !'
+    : '💫 Ton/ta partenaire a trouvé ton code en premier !';
+  if(won && !state.pointsAwarded && myIdentity){
+    state.pointsAwarded = true;
+    awardPoints(myIdentity, 70);
+    mindSaveState(state);
+  }
+}
+
+async function mindReset(){
+  try{ await window.storage.delete('mind_my_session', false); }catch(e){}
+  mindStopPolling();
+  mind = { role:null, code:null, pollTimer:null };
+  document.getElementById('mindJoinInput').value = '';
+  mindShowPane('mindLobby');
 }
 </script>
 </body>

@@ -381,6 +381,10 @@
     outline:none;
   }
   .login-emoji{ font-size:2.4rem; }
+  .login-emoji img{
+    width:72px; height:72px; border-radius:50%; object-fit:cover;
+    display:block; border:2px solid rgba(255,255,255,.15);
+  }
 
   /* ---------- LEADERBOARD / OOTD ---------- */
   .lb-points{
@@ -525,11 +529,11 @@
       <p class="login-hint">Qui es-tu ?</p>
       <div class="login-buttons">
         <button class="login-btn" id="loginBtn1" onclick="loginAs('name1')">
-          <span class="login-emoji">😎</span>
+          <span class="login-emoji" id="loginIcon1">😎</span>
           <span id="loginName1"></span>
         </button>
         <button class="login-btn" id="loginBtn2" onclick="loginAs('name2')">
-          <span class="login-emoji">😍</span>
+          <span class="login-emoji" id="loginIcon2">😍</span>
           <span id="loginName2"></span>
         </button>
       </div>
@@ -1081,9 +1085,9 @@ const MEMORY_PAIRS = [
 // Photos utilisées comme pions dans le Morpion (à la place des croix/ronds).
 // Laisse "" pour l'instant, un emoji de secours s'affichera. Mets l'URL de vos
 // photos ici quand tu les as (ex: "https://.../photo-toi.jpg").
-const TTT_PHOTO_P1 = "https://i.imgur.com/f45qkd2.jpeg";        // ta photo (créateur/créatrice de la partie)
+const TTT_PHOTO_P1 = "tt1.jpg";        // ta photo (créateur/créatrice de la partie) — fichier hébergé à côté de index.html
 const TTT_PHOTO_P1_FALLBACK = "😎";
-const TTT_PHOTO_P2 = "https://i.imgur.com/KQLA2xC.jpeg";        // sa photo (celle/celui qui rejoint)
+const TTT_PHOTO_P2 = "tt2.jpg";        // sa photo (celle/celui qui rejoint) — fichier hébergé à côté de index.html
 const TTT_PHOTO_P2_FALLBACK = "😍";
 
 // Lieux à retrouver dans GeoSouvenirs. Remplace lat/lng par les vraies coordonnées
@@ -1931,6 +1935,10 @@ async function loginAs(id){
 function renderWhoAmI(){
   document.getElementById('loginName1').textContent = COUPLE.name1;
   document.getElementById('loginName2').textContent = COUPLE.name2;
+  document.getElementById('loginIcon1').innerHTML = TTT_PHOTO_P1
+    ? `<img src="${TTT_PHOTO_P1}" alt="">` : TTT_PHOTO_P1_FALLBACK;
+  document.getElementById('loginIcon2').innerHTML = TTT_PHOTO_P2
+    ? `<img src="${TTT_PHOTO_P2}" alt="">` : TTT_PHOTO_P2_FALLBACK;
   const current = document.getElementById('whoamiCurrent');
   current.textContent = myIdentity === 'name1' ? COUPLE.name1 : (myIdentity === 'name2' ? COUPLE.name2 : '—');
 }
@@ -2588,7 +2596,7 @@ async function c4Reset(){
    MASTERMIND — devine le code à 4 chiffres de l'autre
    ============================================================ */
 
-let mind = { role:null, code:null, pollTimer:null };
+let mind = { role:null, code:null, pollTimer:null, guessInputsReady:false };
 
 function mindKey(code){ return 'mind_room:' + code; }
 
@@ -2784,7 +2792,14 @@ function mindRenderGame(state){
 
   const guessBtn = document.getElementById('mindGuessBtn');
   guessBtn.style.display = isMyTurn ? 'inline-block' : 'none';
-  if(isMyTurn){ mindSetupDigitInputs('mindGuessInputs'); }
+  if(isMyTurn){
+    if(!mind.guessInputsReady){
+      mindSetupDigitInputs('mindGuessInputs');
+      mind.guessInputsReady = true;
+    }
+  } else {
+    mind.guessInputsReady = false;
+  }
 }
 
 async function mindSubmitGuess(){
@@ -2827,7 +2842,7 @@ function mindRenderResult(state){
 async function mindReset(){
   try{ await window.storage.delete('mind_my_session', false); }catch(e){}
   mindStopPolling();
-  mind = { role:null, code:null, pollTimer:null };
+  mind = { role:null, code:null, pollTimer:null, guessInputsReady:false };
   document.getElementById('mindJoinInput').value = '';
   mindShowPane('mindLobby');
 }

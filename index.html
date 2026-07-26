@@ -157,6 +157,13 @@
   }
   .back-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
 
+  .danger-btn{
+    background:none; border:1px solid rgba(255,62,127,.4); color:var(--pink);
+    font-family:'Space Mono', monospace; font-size:.75rem; letter-spacing:1px;
+    padding:8px 14px; border-radius:999px; cursor:pointer; margin-bottom:18px; margin-left:8px;
+  }
+  .danger-btn:hover{ border-color:var(--pink); background:rgba(255,62,127,.12); }
+
   .screen h2{
     font-family:'Fredoka', sans-serif;
     color:var(--yellow);
@@ -509,6 +516,23 @@
     display:flex; justify-content:space-between;
   }
   .mind-history-item b{ color:var(--yellow); }
+
+  /* ---------- ROUE DES EXTRÊMES ---------- */
+  .wave-dial-wrap{
+    position:relative; max-width:460px; margin:18px auto; user-select:none;
+  }
+  .wave-dial-wrap svg{ width:100%; height:auto; display:block; }
+  .wave-dial-wrap svg.interactive{ cursor:pointer; }
+  .wave-label{
+    position:absolute; bottom:2px; font-family:'Fredoka',sans-serif; font-size:.8rem;
+    color:var(--white); max-width:100px; text-align:center; line-height:1.2;
+  }
+  .wave-label.left{ left:-4px; }
+  .wave-label.right{ right:-4px; text-align:center; }
+  .wave-clue-badge{
+    text-align:center; font-family:'Fredoka',sans-serif; font-size:1.15rem; color:var(--yellow);
+    margin:6px 0 0;
+  }
 </style>
 </head>
 <body>
@@ -594,6 +618,11 @@
         <h3>Mastermind</h3>
         <span class="coin">JOUER</span>
       </div>
+      <div class="cabinet" style="--accent:#FF6B9D" tabindex="0" onclick="showScreen('wave')">
+        <span class="emoji">🎡</span>
+        <h3>Roue des Extrêmes</h3>
+        <span class="coin">JOUER</span>
+      </div>
     </div>
   </div>
 
@@ -625,6 +654,7 @@
   <div id="battleship" class="screen">
     <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
     <h2>🚢 Bataille navale</h2>
+    <button class="danger-btn" onclick="bshipAbandon()">🚪 Quitter / Annuler la partie</button>
     <p class="bship-hint">Jouable à distance : un(e) de vous deux crée une partie et envoie le code à l'autre (par SMS par exemple).</p>
 
     <!-- Lobby: create or join -->
@@ -694,6 +724,7 @@
   <div id="ttt" class="screen">
     <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
     <h2>📸 Morpion à nous</h2>
+    <button class="danger-btn" onclick="tttAbandon()">🚪 Quitter / Annuler la partie</button>
     <p class="bship-hint">Même principe que la bataille navale : crée ou rejoins une partie avec un code.</p>
 
     <div id="tttLobby">
@@ -769,6 +800,7 @@
       <li>🗺️ GeoSouvenirs — jusqu'à <b>100 pts</b> par lieu selon la précision</li>
       <li>🔴 Puissance 4 gagné — <b>60 pts</b></li>
       <li>🔐 Mastermind gagné — <b>70 pts</b></li>
+      <li>🎡 Roue des Extrêmes — jusqu'à <b>100 pts</b> par manche (vous gagnez tous les deux !)</li>
       <li>👗 OOTD posté — <b>50 pts</b>/jour</li>
     </ul>
 
@@ -802,6 +834,7 @@
   <div id="loto" class="screen">
     <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
     <h2>🔢 Course à 100</h2>
+    <button class="danger-btn" onclick="lotoAbandon()">🚪 Quitter / Annuler la partie</button>
     <p class="bship-hint">À jouer pendant un appel : chacun choisit un nombre à voix haute et remplit sa grille pendant que l'autre le cherche sur le support.</p>
 
     <div id="lotoLobby">
@@ -856,6 +889,7 @@
   <div id="c4" class="screen">
     <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
     <h2>🔴 Puissance 4</h2>
+    <button class="danger-btn" onclick="c4Abandon()">🚪 Quitter / Annuler la partie</button>
     <p class="bship-hint">Avec vos photos comme pièces. Crée ou rejoins une partie avec un code.</p>
 
     <div id="c4Lobby">
@@ -897,6 +931,7 @@
   <div id="mind" class="screen">
     <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
     <h2>🔐 Mastermind</h2>
+    <button class="danger-btn" onclick="mindAbandon()">🚪 Quitter / Annuler la partie</button>
     <p class="bship-hint">Chacun choisit un code secret à 4 chiffres (0-9). Devinez le code de l'autre : on vous dit juste combien de chiffres sont bons, pas lesquels !</p>
 
     <div id="mindLobby">
@@ -962,6 +997,68 @@
       <div class="quiz-result">
         <div id="mindResultText" class="bship-result-text"></div>
         <button class="replay-btn" onclick="mindReset()">Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROUE DES EXTRÊMES (WAVELENGTH) -->
+  <div id="wave" class="screen">
+    <button class="back-btn" onclick="showScreen('menu')">← Retour</button>
+    <h2>🎡 Roue des Extrêmes</h2>
+    <button class="danger-btn" onclick="waveAbandon()">🚪 Quitter / Annuler la partie</button>
+    <p class="bship-hint">À chaque manche, l'un de vous donne un exemple pour un point caché sur la roue, l'autre doit deviner où il se trouve. Vous marquez des points ensemble selon la précision !</p>
+
+    <div id="waveLobby">
+      <div class="bship-lobby-grid">
+        <div class="bship-lobby-card">
+          <h3>Créer une partie</h3>
+          <p>Génère un code à partager</p>
+          <button class="replay-btn" onclick="waveCreateRoom()">Créer</button>
+        </div>
+        <div class="bship-lobby-card">
+          <h3>Rejoindre une partie</h3>
+          <input id="waveJoinInput" class="bship-input" placeholder="CODE" maxlength="5">
+          <button class="replay-btn" onclick="waveJoinRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <p id="waveLobbyError" class="bship-error"></p>
+    </div>
+
+    <div id="waveWaitingOpponent" style="display:none">
+      <div class="bship-code-display">Code de la partie : <span id="waveCodeShown"></span></div>
+      <p class="bship-hint">En attente que ton/ta partenaire rejoigne avec ce code…</p>
+    </div>
+
+    <div id="waveRound" style="display:none">
+      <div class="geo-round-header">
+        <span id="waveRoundCount"></span>
+        <span id="waveScoreTotal"></span>
+      </div>
+      <p id="waveStatusText" class="bship-turn"></p>
+
+      <div id="wavePickCategoryWrap" style="display:none; text-align:center;">
+        <button class="replay-btn" onclick="wavePickCategory()">🎲 Nouvelle manche</button>
+      </div>
+
+      <div id="waveClueGiverWrap" style="display:none">
+        <p class="bship-hint">Toi seul(e) vois où se trouve le point sur la roue. Trouve un exemple qui correspond à cet endroit !</p>
+        <input id="waveClueInput" class="bship-input" style="text-transform:none; letter-spacing:normal;" placeholder="Ton exemple...">
+        <button class="replay-btn" onclick="waveSubmitClue()">Envoyer l'exemple</button>
+      </div>
+
+      <div id="waveClueDisplayWrap" style="display:none">
+        <p class="wave-clue-badge">💬 « <span id="waveClueShown"></span> »</p>
+      </div>
+
+      <div class="wave-dial-wrap" id="waveDialWrap"></div>
+
+      <div id="waveGuessActions" style="display:none; text-align:center;">
+        <button id="waveValidateBtn" class="replay-btn" disabled onclick="waveValidateGuess()">Valider ma réponse</button>
+      </div>
+
+      <div id="waveRevealWrap" class="geo-round-result" style="display:none"></div>
+      <div id="waveNextWrap" style="display:none; text-align:center;">
+        <button class="next-btn" onclick="wavePickCategory()">Manche suivante</button>
       </div>
     </div>
   </div>
@@ -1094,31 +1191,26 @@ const TTT_PHOTO_P2_FALLBACK = "😍";
 // (clic droit sur Google Maps > "Coordonnées" copie lat, lng exactement).
 // clue = l'indice texte qu'elle voit avant de deviner.
 const GEO_LOCATIONS = [
-  { clue: "Le lieu de notre première rencontre", lat: 48.842267, lng: 2.396562 },
-{ clue: "Où on s'est revu au début de ton année de PASS", lat: 45.7640, lng: 4.8357 },
-  { clue: "Le bar où on s'est revu en juin 2025", lat: 43.2965, lng: 5.3698 },
-  { clue: "Où on a retouvé Titouan à la gare", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a acheté mes chaussures lors de notre sortie en juillet 2025", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a joué au foot", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a acheté notre maillot matching du PSG", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où je t'ai prêté mon pull le jour du basket", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où je t'ai avoué que j'avais des sentiments et que j'étais prêt à tenter le coup avec toi", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on s'est retrouvé pour notre premier date", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on s'est fait interviewé en micro trottoir", lat: 43.2965, lng: 5.3698 },
-{ clue: "Le fameux bubble tea", lat: 43.2965, lng: 5.3698 },
-{ clue: "Le mémorable saule pleureur", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où je t'ai embrassé pour la première fois et que l'on s'est mis ensemble", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a mangé notre tout premier Banh Mi", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a fêté nos 2 mois et nos anniversaires", lat: 43.2965, lng: 5.3698 },
-{ clue: "Le café où on est allés pour fêter Noel ensemble", lat: 43.2965, lng: 5.3698 },
-{ clue: "Où on a passé notre première semaine de vacances ensemble", lat: 43.2965, lng: 5.3698 }
-  
-
+  { clue: "Le café où on a pris notre tout premier petit-déj ensemble ☕", lat: 48.8566, lng: 2.3522 },
+  { clue: "Le banc où on a regardé notre premier coucher de soleil 🌅", lat: 45.7640, lng: 4.8357 },
+  { clue: "L'endroit où tu m'as battu au frisbee dans le parc 🥏", lat: 43.2965, lng: 5.3698 }
 ];
 
 // Vue de départ de la carte quand une manche commence (avant qu'elle ne zoome/déplace).
 // Mets les coordonnées et le zoom qui correspondent à votre région (zoom plus petit = vue plus large).
 const GEO_DEFAULT_VIEW = { lat: 46.6, lng: 2.5, zoom: 5 };
+
+// Paires de catégories opposées pour la Roue des Extrêmes. Ajoute-en autant que tu veux,
+// une paire est tirée au hasard à chaque manche. left = 0 sur la roue, right = 100.
+const WAVELENGTH_CATEGORIES = [
+  { left: "Animal pas dangereux", right: "Animal dangereux" },
+  { left: "Mauvais film", right: "Chef-d'œuvre" },
+  { left: "Personne n'en mange", right: "On en mange tous les jours" },
+  { left: "Ringard", right: "Stylé" },
+  { left: "Silencieux", right: "Bruyant" },
+  { left: "Petit budget", right: "Très cher" },
+  { left: "Ennuyeux", right: "Passionnant" }
+];
 
 // Barème du classement général — change les chiffres si tu veux rééquilibrer.
 const POINTS = {
@@ -1153,6 +1245,7 @@ function showScreen(id){
   if(id === 'loto') lotoInit(); else lotoStopPolling();
   if(id === 'c4') c4Init(); else c4StopPolling();
   if(id === 'mind') mindInit(); else mindStopPolling();
+  if(id === 'wave') waveInit(); else waveStopPolling();
 }
 
 /* ---------- TIMELINE ---------- */
@@ -1592,6 +1685,12 @@ async function bshipFire(index){
 function bshipRenderResult(state){
   bshipStopPolling();
   bshipShowPane('bshipResult');
+  if(state.abandoned){
+    document.getElementById('bshipResultText').textContent = state.abandonedBy === bship.role
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
   const won = state.winner === bship.role;
   document.getElementById('bshipResultText').textContent = won
     ? '🎉 Victoire ! Toute la flotte adverse est coulée.'
@@ -1601,6 +1700,20 @@ function bshipRenderResult(state){
     awardPoints(myIdentity, 100);
     bshipSaveState(state);
   }
+}
+
+async function bshipAbandon(){
+  if(bship.code){
+    const state = await bshipLoadState(bship.code);
+    if(state && state.status !== 'over'){
+      state.status = 'over';
+      state.winner = null;
+      state.abandoned = true;
+      state.abandonedBy = bship.role;
+      await bshipSaveState(state);
+    }
+  }
+  await bshipReset();
 }
 
 async function bshipReset(){
@@ -1782,6 +1895,12 @@ function tttRenderResult(state){
   tttShowPane('tttResult');
   const board = document.getElementById('tttBoard');
   const text = document.getElementById('tttResultText');
+  if(state.abandoned){
+    text.textContent = state.abandonedBy === ttt.role
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
   if(state.winner === 'draw'){
     text.textContent = "🤝 Match nul !";
   } else if(state.winner === ttt.role){
@@ -1794,6 +1913,20 @@ function tttRenderResult(state){
     awardPoints(myIdentity, 50);
     tttSaveState(state);
   }
+}
+
+async function tttAbandon(){
+  if(ttt.code){
+    const state = await tttLoadState(ttt.code);
+    if(state && state.status !== 'over'){
+      state.status = 'over';
+      state.winner = null;
+      state.abandoned = true;
+      state.abandonedBy = ttt.role;
+      await tttSaveState(state);
+    }
+  }
+  await tttReset();
 }
 
 async function tttReset(){
@@ -2370,10 +2503,30 @@ async function lotoClickNumber(num){
 function lotoRenderResult(state){
   lotoStopPolling();
   lotoShowPane('lotoResult');
+  if(state.abandoned){
+    document.getElementById('lotoResultText').textContent = state.abandonedBy === loto.role
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
   const won = state.winner === loto.role;
   document.getElementById('lotoResultText').textContent = won
     ? '🎉 Grille remplie en premier, tu as gagné ! +80 points'
     : '💫 Ton/ta partenaire a rempli sa grille en premier cette fois !';
+}
+
+async function lotoAbandon(){
+  if(loto.code){
+    const state = await lotoLoadState(loto.code);
+    if(state && state.status !== 'over'){
+      state.status = 'over';
+      state.winner = null;
+      state.abandoned = true;
+      state.abandonedBy = loto.role;
+      await lotoSaveState(state);
+    }
+  }
+  await lotoReset();
 }
 
 async function lotoReset(){
@@ -2587,6 +2740,12 @@ function c4RenderResult(state){
   c4StopPolling();
   c4ShowPane('c4Result');
   const text = document.getElementById('c4ResultText');
+  if(state.abandoned){
+    text.textContent = state.abandonedBy === c4.role
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
   if(state.winner === 'draw'){
     text.textContent = "🤝 Match nul, grille pleine !";
   } else if(state.winner === c4.role){
@@ -2599,6 +2758,20 @@ function c4RenderResult(state){
     awardPoints(myIdentity, 60);
     c4SaveState(state);
   }
+}
+
+async function c4Abandon(){
+  if(c4.code){
+    const state = await c4LoadState(c4.code);
+    if(state && state.status !== 'over'){
+      state.status = 'over';
+      state.winner = null;
+      state.abandoned = true;
+      state.abandonedBy = c4.role;
+      await c4SaveState(state);
+    }
+  }
+  await c4Reset();
 }
 
 async function c4Reset(){
@@ -2845,6 +3018,12 @@ async function mindSubmitGuess(){
 function mindRenderResult(state){
   mindStopPolling();
   mindShowPane('mindResult');
+  if(state.abandoned){
+    document.getElementById('mindResultText').textContent = state.abandonedBy === mind.role
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
   const won = state.winner === mind.role;
   document.getElementById('mindResultText').textContent = won
     ? '🎉 Tu as trouvé son code secret, tu as gagné !'
@@ -2856,12 +3035,390 @@ function mindRenderResult(state){
   }
 }
 
+async function mindAbandon(){
+  if(mind.code){
+    const state = await mindLoadState(mind.code);
+    if(state && state.status !== 'over'){
+      state.status = 'over';
+      state.winner = null;
+      state.abandoned = true;
+      state.abandonedBy = mind.role;
+      await mindSaveState(state);
+    }
+  }
+  await mindReset();
+}
+
 async function mindReset(){
   try{ await window.storage.delete('mind_my_session', false); }catch(e){}
   mindStopPolling();
   mind = { role:null, code:null, pollTimer:null, guessInputsReady:false };
   document.getElementById('mindJoinInput').value = '';
   mindShowPane('mindLobby');
+}
+
+/* ============================================================
+   ROUE DES EXTRÊMES — façon Wavelength, à deux
+   ============================================================ */
+
+let wave = { role:null, code:null, pollTimer:null, pendingGuess:null };
+
+function waveKey(code){ return 'wave_room:' + code; }
+
+async function waveSaveState(state){
+  state.updatedAt = Date.now();
+  await window.storage.set(waveKey(wave.code), JSON.stringify(state), true);
+  return state;
+}
+async function waveLoadState(code){
+  try{
+    const res = await window.storage.get(waveKey(code), true);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function waveRememberSession(code, role){
+  try{ await window.storage.set('wave_my_session', JSON.stringify({code, role}), false); }catch(e){}
+}
+async function waveGetRememberedSession(){
+  try{
+    const res = await window.storage.get('wave_my_session', false);
+    return res ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+
+function waveShowPane(id){
+  ['waveLobby','waveWaitingOpponent','waveRound']
+    .forEach(p => document.getElementById(p).style.display = (p === id) ? 'block' : 'none');
+}
+
+function waveRandomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+async function waveInit(){
+  document.getElementById('waveLobbyError').textContent = '';
+  const remembered = await waveGetRememberedSession();
+  if(remembered && remembered.code){
+    const state = await waveLoadState(remembered.code);
+    if(state){
+      wave.role = remembered.role;
+      wave.code = remembered.code;
+      if(state.status === 'waiting'){
+        document.getElementById('waveCodeShown').textContent = wave.code;
+        waveShowPane('waveWaitingOpponent');
+      } else {
+        waveRenderRound(state);
+      }
+      waveStartPolling();
+      return;
+    }
+  }
+  waveShowPane('waveLobby');
+}
+
+async function waveCreateRoom(){
+  const code = waveRandomCode();
+  wave.role = 'p1';
+  wave.code = code;
+  const state = {
+    code,
+    status: 'waiting',
+    p2Joined: false,
+    giverRole: 'p1',
+    round: 1,
+    totalScore: 0,
+    category: null,
+    target: null,
+    clue: '',
+    guess: null,
+    lastPoints: null,
+    lastDistance: null
+  };
+  await waveSaveState(state);
+  await waveRememberSession(code, 'p1');
+  document.getElementById('waveCodeShown').textContent = code;
+  waveShowPane('waveWaitingOpponent');
+  waveStartPolling();
+}
+
+async function waveJoinRoom(){
+  const input = document.getElementById('waveJoinInput');
+  const code = input.value.trim().toUpperCase();
+  const errorEl = document.getElementById('waveLobbyError');
+  if(!code){ errorEl.textContent = 'Entre un code.'; return; }
+  const state = await waveLoadState(code);
+  if(!state){ errorEl.textContent = "Ce code n'existe pas."; return; }
+  wave.role = 'p2';
+  wave.code = code;
+  state.p2Joined = true;
+  state.status = 'category';
+  await waveSaveState(state);
+  await waveRememberSession(code, 'p2');
+  waveRenderRound(state);
+  waveStartPolling();
+}
+
+function waveStartPolling(){
+  waveStopPolling();
+  wave.pollTimer = setInterval(wavePoll, 2000);
+}
+function waveStopPolling(){
+  if(wave.pollTimer){ clearInterval(wave.pollTimer); wave.pollTimer = null; }
+}
+
+async function wavePoll(){
+  if(!wave.code || !wave.role) return;
+  const state = await waveLoadState(wave.code);
+  if(!state) return;
+  if(state.status === 'waiting'){
+    if(state.p2Joined){
+      waveRenderRound(state);
+    }
+    return;
+  }
+  waveRenderRound(state);
+}
+
+async function wavePickCategory(){
+  const state = await waveLoadState(wave.code);
+  if(!state) return;
+  const cat = WAVELENGTH_CATEGORIES[Math.floor(Math.random() * WAVELENGTH_CATEGORIES.length)];
+  state.category = cat;
+  state.target = Math.round(Math.random() * 100);
+  state.clue = '';
+  state.guess = null;
+  state.lastPoints = null;
+  state.lastDistance = null;
+  state.status = 'giving';
+  await waveSaveState(state);
+  wave.pendingGuess = null;
+  waveRenderRound(state);
+}
+
+async function waveSubmitClue(){
+  const input = document.getElementById('waveClueInput');
+  const clue = input.value.trim();
+  if(!clue) return;
+  const state = await waveLoadState(wave.code);
+  if(!state || state.giverRole !== wave.role) return;
+  state.clue = clue;
+  state.status = 'guessing';
+  await waveSaveState(state);
+  waveRenderRound(state);
+}
+
+function waveValueFromClick(evt, svg){
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const scaleX = vb.width / rect.width;
+  const scaleY = vb.height / rect.height;
+  const x = (evt.clientX - rect.left) * scaleX;
+  const y = (evt.clientY - rect.top) * scaleY;
+  const cx = 150, cy = 150;
+  let angleDeg = Math.atan2(cy - y, x - cx) * 180 / Math.PI;
+  angleDeg = Math.max(0, Math.min(180, angleDeg));
+  return Math.round(100 - (angleDeg / 180 * 100));
+}
+
+function wavePointFor(value){
+  const cx = 150, cy = 150, r = 130;
+  const angle = (100 - value) / 100 * Math.PI; // radians, 180°(left,v=0) -> 0°(right,v=100)
+  return { x: cx + r * Math.cos(angle), y: cy - r * Math.sin(angle) };
+}
+
+function waveRenderDial(state, isGiverView, interactive){
+  const wrap = document.getElementById('waveDialWrap');
+  const showTarget = isGiverView || state.status === 'revealed';
+  const cat = state.category || { left: '', right: '' };
+
+  let marks = '';
+  const trackStops = 12;
+  for(let i = 0; i <= trackStops; i++){
+    const v = i * (100/trackStops);
+    const p = wavePointFor(v);
+    marks += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2" fill="rgba(255,255,255,.15)"/>`;
+  }
+
+  let targetMark = '';
+  if(showTarget && state.target !== null){
+    const p = wavePointFor(state.target);
+    targetMark = `<g>
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="none" stroke="#FFD23F" stroke-width="3"/>
+      <text x="${p.x.toFixed(1)}" y="${(p.y-16).toFixed(1)}" text-anchor="middle" font-size="16">🎯</text>
+    </g>`;
+  }
+
+  let guessMark = '';
+  const guessVal = (wave.pendingGuess !== null && interactive) ? wave.pendingGuess : state.guess;
+  if(guessVal !== null && guessVal !== undefined){
+    const p = wavePointFor(guessVal);
+    guessMark = `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="9" fill="#4CEEDB" stroke="#0F0721" stroke-width="2"/>`;
+  }
+
+  let line = '';
+  if(state.status === 'revealed' && state.guess !== null && state.target !== null){
+    const pg = wavePointFor(state.guess);
+    const pt = wavePointFor(state.target);
+    line = `<line x1="${pg.x.toFixed(1)}" y1="${pg.y.toFixed(1)}" x2="${pt.x.toFixed(1)}" y2="${pt.y.toFixed(1)}" stroke="#FF3E7F" stroke-width="2" stroke-dasharray="5,5"/>`;
+  }
+
+  wrap.innerHTML = `
+    <svg viewBox="0 0 300 170" class="${interactive ? 'interactive' : ''}">
+      <path d="M 20 150 A 130 130 0 0 1 280 150" fill="none" stroke="#1B0E38" stroke-width="26" stroke-linecap="round"/>
+      <path d="M 20 150 A 130 130 0 0 1 280 150" fill="none" stroke="url(#waveGrad)" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+      <defs>
+        <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#4CEEDB"/>
+          <stop offset="100%" stop-color="#FF3E7F"/>
+        </linearGradient>
+      </defs>
+      ${marks}
+      ${line}
+      ${targetMark}
+      ${guessMark}
+    </svg>
+    <div class="wave-label left">${cat.left}</div>
+    <div class="wave-label right">${cat.right}</div>
+  `;
+
+  if(interactive){
+    const svg = wrap.querySelector('svg');
+    svg.onclick = (evt) => {
+      const v = waveValueFromClick(evt, svg);
+      wave.pendingGuess = v;
+      document.getElementById('waveValidateBtn').disabled = false;
+      waveRenderDial(state, isGiverView, interactive);
+    };
+  }
+}
+
+function waveRenderRound(state){
+  waveShowPane('waveRound');
+  const me = wave.role;
+  const opp = me === 'p1' ? 'p2' : 'p1';
+  const isGiver = state.giverRole === me;
+
+  document.getElementById('waveRoundCount').textContent = `Manche ${state.round}`;
+  document.getElementById('waveScoreTotal').textContent = `Score équipe : ${state.totalScore}`;
+
+  const pickWrap = document.getElementById('wavePickCategoryWrap');
+  const giverWrap = document.getElementById('waveClueGiverWrap');
+  const clueDisplayWrap = document.getElementById('waveClueDisplayWrap');
+  const guessActions = document.getElementById('waveGuessActions');
+  const revealWrap = document.getElementById('waveRevealWrap');
+  const nextWrap = document.getElementById('waveNextWrap');
+  const statusText = document.getElementById('waveStatusText');
+
+  [pickWrap, giverWrap, clueDisplayWrap, guessActions, revealWrap, nextWrap]
+    .forEach(el => el.style.display = 'none');
+
+  if(state.status === 'abandoned'){
+    waveStopPolling();
+    document.getElementById('waveDialWrap').innerHTML = '';
+    statusText.textContent = state.abandonedBy === me
+      ? '🚪 Tu as quitté la partie.'
+      : '🚪 Ton/ta partenaire a quitté la partie.';
+    return;
+  }
+
+  if(state.status === 'category' || state.status === null){
+    if(isGiver){
+      statusText.textContent = "🎙️ C'est toi qui donnes l'exemple ce tour-ci !";
+      pickWrap.style.display = 'block';
+    } else {
+      statusText.textContent = "😌 En attente que ton/ta partenaire lance la manche…";
+    }
+    waveRenderDial({ category: null, target: null, status:'category', guess:null }, false, false);
+    return;
+  }
+
+  if(state.status === 'giving'){
+    if(isGiver){
+      statusText.textContent = "Donne un exemple qui correspond à l'endroit caché !";
+      giverWrap.style.display = 'block';
+      document.getElementById('waveClueInput').value = '';
+      waveRenderDial(state, true, false);
+    } else {
+      statusText.textContent = "⏳ Ton/ta partenaire réfléchit à un exemple…";
+      waveRenderDial(state, false, false);
+    }
+    return;
+  }
+
+  if(state.status === 'guessing'){
+    clueDisplayWrap.style.display = 'block';
+    document.getElementById('waveClueShown').textContent = state.clue;
+    if(isGiver){
+      statusText.textContent = "⏳ Ton/ta partenaire cherche où placer ton exemple…";
+      waveRenderDial(state, true, false);
+    } else {
+      statusText.textContent = "🎯 Clique sur la roue à l'endroit qui correspond à cet exemple !";
+      guessActions.style.display = 'block';
+      document.getElementById('waveValidateBtn').disabled = (wave.pendingGuess === null);
+      waveRenderDial(state, false, true);
+    }
+    return;
+  }
+
+  if(state.status === 'revealed'){
+    clueDisplayWrap.style.display = 'block';
+    document.getElementById('waveClueShown').textContent = state.clue;
+    statusText.textContent = "✨ Résultat de la manche !";
+    revealWrap.style.display = 'block';
+    revealWrap.innerHTML = `
+      <div class="geo-distance">📏 Écart : ${state.lastDistance} / 100</div>
+      <div class="geo-points">+${state.lastPoints} points pour l'équipe</div>
+    `;
+    nextWrap.style.display = 'block';
+    waveRenderDial(state, true, false);
+  }
+}
+
+async function waveValidateGuess(){
+  if(wave.pendingGuess === null) return;
+  const state = await waveLoadState(wave.code);
+  if(!state || state.status !== 'guessing' || state.giverRole === wave.role) return;
+
+  const distance = Math.abs(wave.pendingGuess - state.target);
+  let points;
+  if(distance <= 3) points = 100;
+  else if(distance <= 8) points = 75;
+  else if(distance <= 15) points = 50;
+  else if(distance <= 25) points = 25;
+  else points = 0;
+
+  state.guess = wave.pendingGuess;
+  state.lastDistance = distance;
+  state.lastPoints = points;
+  state.totalScore += points;
+  state.status = 'revealed';
+  state.giverRole = wave.role; // celui/celle qui vient de deviner donnera le prochain exemple
+  state.round += 1;
+
+  await waveSaveState(state);
+  awardPoints('name1', points);
+  awardPoints('name2', points);
+  wave.pendingGuess = null;
+  waveRenderRound(state);
+}
+
+async function waveAbandon(){
+  if(wave.code){
+    const state = await waveLoadState(wave.code);
+    if(state && state.status !== 'abandoned'){
+      state.status = 'abandoned';
+      state.abandonedBy = wave.role;
+      await waveSaveState(state);
+    }
+  }
+  try{ await window.storage.delete('wave_my_session', false); }catch(e){}
+  waveStopPolling();
+  wave = { role:null, code:null, pollTimer:null, pendingGuess:null };
+  document.getElementById('waveJoinInput').value = '';
+  waveShowPane('waveLobby');
 }
 </script>
 </body>
